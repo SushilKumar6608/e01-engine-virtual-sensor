@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "e01-engine-virtual-sensor"
+version = "0.1.0"
+description = "Uncertainty-aware virtual sensor for a large marine-style two-stroke engine. ALL DATA IS SIMULATED."
+requires-python = ">=3.11"
+# Versions pinned to what this version was built and tested with (Python 3.13).
+# ML / ONNX packages are added and pinned on the day they are first used.
+dependencies = [
+    "numpy==2.5.3",
+    "scipy==1.18.1",
+    "pandas==3.0.5",
+    "pydantic==2.13.5",
+    "PyYAML==6.0.3",
+    "matplotlib==3.11.2",
+]
+
+[project.optional-dependencies]
+# Cantera is only needed to (re)build the thermo table and to run the checks.
+# Runtime simulation uses the frozen table in src/vsensor/sim/thermo_nasa7.json.
+dev = [
+    "cantera==3.2.0",
+    "pytest==9.1.1",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+vsensor = ["sim/thermo_nasa7.json"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-q"

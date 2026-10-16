@@ -1,0 +1,443 @@
+# Parameter registry - SIMULATION PROJECT (no real engine data).
+# Every number used by the simulators is listed here with its provenance.
+# status: sourced | derived | assumed | calibrated   (see src/vsensor/params.py)
+#
+# "verification" says honestly how each source was checked. Several sources were
+# read through a web-fetch text summary, not by opening the original PDF/figures.
+
+sources:
+  S01:
+    citation: >-
+      Alegret, Llamas, Vejlgaard-Laursen, Eriksson (2015). Modeling of a Large
+      Marine Two-Stroke Diesel Engine with Cylinder Bypass Valve and EGR System.
+      IFAC MCMC.
+    url: https://www.fs.isy.liu.se/Publications/Articles/MCMC_15_GA_XL_MV_LE.pdf
+    verification: >-
+      Read via a web-fetch text summary (not the figures themselves). Rated power
+      and speed are stated in the text. The plot axis ranges (scavenge pressure
+      2-4 bar, exhaust temperature 600-800 K, turbocharger speed 1400-1800 rad/s)
+      were read off one figure (dataset 11) and are INDICATIVE only. The paper does
+      not give bore, stroke, cylinder count, or any rated-point state values.
+  S02:
+    citation: >-
+      The Motorship (2019), "MAN Energy Solutions to develop second test engine in
+      2019": new engine has the same dimensions as the existing 4T50ME-X, 500 mm
+      bore, 4 cylinders.
+    url: https://motorship.com/man-energy-solutions-to-develop-second-test-engine-in-2019/1156922.article
+    verification: >-
+      Read via a web-fetch text summary. Stroke and power are NOT stated there.
+  S03:
+    citation: >-
+      NIST Chemistry WebBook, n-dodecane (C12H26): enthalpy of vaporisation about
+      61 kJ/mol (61.4 kJ/mol at 299 K); liquid formation enthalpy -352.1 or -349.3
+      kJ/mol depending on the cited study.
+    url: https://webbook.nist.gov/cgi/cbook.cgi?ID=C112403&Mask=FFF
+    verification: >-
+      Read via a web-fetch text summary. My earlier recollection (about 77 kJ/mol)
+      was WRONG; the NIST value is used.
+  S04:
+    citation: >-
+      IEA Advanced Motor Fuels, methanol fuel properties: LHV 20.0 MJ/kg,
+      stoichiometric air-fuel ratio 6.4, heat of vaporisation 1160-1174 kJ/kg.
+    url: https://iea-amf.org/content/fuel_information/methanol/fuel_properties
+    verification: >-
+      Read via a web-fetch text summary. Page does not state the temperature of the
+      heat of vaporisation or the unit of the stoichiometric ratio (kg/kg assumed).
+  S05:
+    citation: >-
+      Cantera 3.2.0 shipped data files gri30.yaml (CO2, H2O, N2, O2, Ar, CH3OH) and
+      nDodecane_Reitz.yaml (c12h26): NASA-7 thermodynamic polynomials.
+    url: https://cantera.org
+    verification: >-
+      Extracted by scripts/build_thermo_table.py; NumPy evaluation checked against
+      Cantera's own h(T) (tests/test_thermo_fuels.py). Only thermodynamics is used.
+  S06:
+    citation: >-
+      Danish EPA (1998), marine fuels chapter: marine gas oil lower calorific value
+      "normally from 44000 to 45000 kJ/kg"; marine diesel oil about 44000 kJ/kg.
+    url: https://www2.mst.dk/udgiv/Publications/1998/87-7909-173-3/html/kap04_eng.htm
+    verification: >-
+      Read via a web-fetch text summary. Old (1998) source; used only to judge the
+      n-dodecane surrogate, not as a model input.
+  S07:
+    citation: Standard dry-air composition (O2 20.95 %, N2 78.08 %, Ar 0.93 % by mole).
+    verification: >-
+      Textbook value recalled, NOT fetched in this project. Low risk, but unverified.
+  S08:
+    citation: >-
+      MAN Energy Solutions, "Influence of ambient temperature conditions" (document
+      5510-0074-03). Table 5: ISO 3046-1:2002 reference = 1000 mbar, 25 C turbocharger
+      air intake, 25 C scavenge-air cooling water. States the scavenge air cooler is
+      designed for a maximum 12 C difference between cooling-water inlet and scavenge
+      air outlet at 100 % SMCR, and that at 15-30 % load scavenge air is only slightly
+      above the cooling-water temperature. Qualitative: exhaust temperature after the
+      turbine drops in winter.
+    url: https://www.man-es.com/docs/default-source/marine/tools/5510-0074-03.pdf?sfvrsn=fa9e1cee_7
+    verification: >-
+      Read via a web-fetch text summary. No numeric sensitivities of exhaust or scavenge
+      temperature to ambient temperature are given there, so the SIZE of the ambient
+      effect in the simulator is NOT verified; only the direction is qualitatively consistent.
+  S09:
+    citation: >-
+      MAN B&W G95ME-C9.5 Project Guide (2015 copy): ISO reference conditions 1000 mbar,
+      25 C air, 25 C scavenge-air coolant; specific fuel consumption stated for a fuel
+      lower calorific value of 42,700 kJ/kg; scavenge air cooler designed for about 12 C
+      difference at specified MCR.
+    url: https://www.dieselduck.info/machine/01%20prime%20movers/2015%20MAN%20G95ME-C9%20Project%20Guide.pdf
+    verification: >-
+      Read via a web-fetch text summary of an excerpt (third-party copy). The exhaust-gas
+      data chapter was not in the excerpt.
+  S10:
+    citation: >-
+      MAN B&W G60ME-C9.5 Project Guide data excerpt (Fig. 1.03.01): specific fuel oil
+      consumption, high-load tuning, 165.5 g/kWh at 50 %, 163.0 at 75 %, 167.0 at 100 %
+      load; stroke 2790 mm; mean effective pressure 21.0 bar at L1.
+    url: https://s2b4aa72b8b1c7323.jimcontent.com/download/version/1630830691/module/11673801091/name/NTS-MAN%20Burmeister%20&%20Wain%206G60ME-C%20HPSCR%20MK9.5%20Project%20Guide%20Data_compressed.pdf
+    verification: >-
+      Read via a web-fetch text summary of an excerpt (third-party copy). This is a
+      DIFFERENT, larger engine (60 cm bore); it is used only for the SHAPE of the
+      efficiency-versus-load curve and as a mean-effective-pressure sanity check, never
+      as engine data for the 4T50ME-X. Whether the percentages refer to the propeller
+      law was not stated in the summary; the propeller law is assumed.
+
+params:
+  # ------------------------------------------------------------------ engine
+  engine.bore:
+    value: 0.500
+    unit: m
+    description: Cylinder bore
+    status: sourced
+    source: S02
+  engine.n_cyl:
+    value: 4
+    unit: "-"
+    description: Number of cylinders
+    status: sourced
+    source: S02
+  engine.stroke:
+    value: 2.2
+    unit: m
+    description: Piston stroke
+    status: assumed
+    rationale: >-
+      Not found in any cited source. 2.2 m is my recollection of the usual stroke
+      for 50-cm-bore ME-type engines. It only scales displacement. Consistency check
+      (simulator report): it implies a rated brake mean effective pressure of about
+      20 bar, against 21.0 bar quoted at L1 for the larger G60ME-C9.5 [S10] - same
+      class, different engine, so this supports the order of magnitude only.
+  engine.rated_power:
+    value: 7.080e6
+    unit: W
+    description: Rated brake power
+    status: sourced
+    source: S01
+  engine.rated_speed:
+    value: 123.0
+    unit: rpm
+    description: Rated engine speed
+    status: sourced
+    source: S01
+
+  # ------------------------------------- plant: energy conversion (generic)
+  engine.eta_ind_max:
+    value: 0.547449
+    unit: "-"
+    description: Peak gross indicated efficiency (work on piston / fuel energy)
+    status: calibrated
+    calibration: >-
+      With eta_ind_curv and eta_ind_x_opt, fitted so brake efficiency at 50/75/100 percent
+      load on the propeller law equals the published fuel-consumption points (calib.sfoc.*,
+      S10, converted with calib.sfoc.lhv, S09). Exact 3-point fit by scripts/calibrate_efficiency.py.
+      Enforced by tests/test_calibration.py.
+  engine.eta_ind_curv:
+    value: 0.235576
+    unit: "-"
+    description: Curvature of indicated efficiency versus load (parabola)
+    status: calibrated
+    calibration: >-
+      Fitted with eta_ind_max and eta_ind_x_opt to the published fuel-consumption points
+      (see engine.eta_ind_max). The parabola is only constrained between 50 and 100 percent
+      load; below that it is an extrapolation. Enforced by tests/test_calibration.py.
+  engine.eta_ind_x_opt:
+    value: 0.607463
+    unit: "-"
+    description: Relative fuel-energy rate at which indicated efficiency peaks
+    status: calibrated
+    calibration: >-
+      Fitted with eta_ind_max and eta_ind_curv to the published fuel-consumption points
+      (see engine.eta_ind_max). Enforced by tests/test_calibration.py.
+  engine.fmep:
+    value: 0.90e5
+    unit: Pa
+    description: Friction mean effective pressure (constant)
+    status: assumed
+    rationale: >-
+      Generic order of magnitude (about 1 bar) for a large slow-speed engine.
+      Friction power then scales with speed. Not verified in a cited source.
+  engine.f_wall:
+    value: 0.05
+    unit: "-"
+    description: Fraction of fuel energy lost through cylinder walls, jacket and piston cooling
+    status: assumed
+    rationale: >-
+      Generic heat-balance share (a few percent). Constant in the plant. Not
+      verified in a cited source.
+
+  # -------------------------------------------------- plant: air path
+  scav.lambda_coeff:
+    value: 2.26877
+    unit: "-"
+    description: Air delivery ratio coefficient (delivery ratio = coeff * sqrt(1 - p_exh/p_scav))
+    status: calibrated
+    calibration: >-
+      Set by scripts/calibrate_rated.py so rated clean ISO exhaust temperature hits
+      calib.target.t_exh_rated. Enforced by tests/test_calibration.py.
+  cooler.t_coolant_offset:
+    value: 0.0
+    unit: K
+    description: Charge-air coolant temperature minus ambient air temperature
+    status: assumed
+    rationale: >-
+      Simplification: coolant (sea water) tracks ambient air, like the ISO reference
+      condition where both are 25 C. Real sea and air temperatures differ.
+  cooler.eps:
+    value: 0.924086
+    unit: "-"
+    description: Clean air-cooler effectiveness
+    status: calibrated
+    calibration: >-
+      Set by scripts/calibrate_rated.py so that, at the rated clean ISO point, scavenge air
+      leaves the cooler 12 K above the cooling-water temperature (calib.target.cooler_dt_rated,
+      S08/S09). Enforced by tests/test_calibration.py.
+  cooler.k_loss:
+    value: 42.8899
+    unit: Pa s2 kg-1 m-3
+    description: Cooler pressure-loss coefficient (dp = k * m_air^2 / density)
+    status: calibrated
+    calibration: >-
+      Set by scripts/calibrate_rated.py so clean-cooler pressure loss at the rated
+      point equals calib.target.cooler_dp_rated. Enforced by tests/test_calibration.py.
+  cooler.foul_eps_loss:
+    value: 0.25
+    unit: "-"
+    description: Relative loss of cooler effectiveness at full fouling (fouling = 1)
+    status: assumed
+    rationale: >-
+      Sets the size of the hidden health state. Chosen large enough to be visible in
+      scavenge temperature; no cited source for real fouling rates.
+  cooler.foul_dp_gain:
+    value: 1.0
+    unit: "-"
+    description: Relative increase of cooler pressure loss at full fouling
+    status: assumed
+    rationale: Fouled coolers restrict flow; magnitude is a placeholder, no cited source.
+
+  # --------------------------------------------- plant: turbocharger
+  tc.eta_c:
+    value: 0.84
+    unit: "-"
+    description: Compressor isentropic efficiency (clean, constant)
+    status: assumed
+    rationale: Typical for large turbochargers; constant for simplicity (no compressor map).
+  tc.eta_t:
+    value: 0.85
+    unit: "-"
+    description: Turbine efficiency (clean, constant)
+    status: assumed
+    rationale: Typical for large turbochargers; constant for simplicity (no turbine map).
+  tc.eta_mech:
+    value: 0.98
+    unit: "-"
+    description: Turbocharger mechanical efficiency
+    status: assumed
+    rationale: Generic bearing-loss figure.
+  tc.psi:
+    value: 0.65
+    unit: "-"
+    description: Compressor work coefficient (specific work = psi * tip speed^2)
+    status: assumed
+    rationale: >-
+      Typical order for backward-swept centrifugal compressors (about 0.6-0.7);
+      sets the link between turbocharger speed and pressure rise.
+  tc.d_comp:
+    value: 0.58283
+    unit: m
+    description: Compressor wheel diameter (sets turbocharger speed)
+    status: calibrated
+    calibration: >-
+      Set by scripts/calibrate_rated.py so rated clean turbocharger speed equals
+      calib.target.n_tc_rated. Enforced by tests/test_calibration.py.
+  tc.k_turbine:
+    value: 0.00136701
+    unit: kg K0.5 s-1 Pa-1
+    description: "Turbine flow coefficient (Stodola-type law, m*sqrt(T) = k*sqrt(p_in^2 - p_out^2))"
+    status: calibrated
+    calibration: >-
+      Set by scripts/calibrate_rated.py so rated clean scavenge pressure equals
+      calib.target.p_scav_rated. Enforced by tests/test_calibration.py.
+  tc.p_back_ratio:
+    value: 1.02
+    unit: "-"
+    description: Pressure after the turbine divided by ambient pressure
+    status: assumed
+    rationale: Small exhaust-duct / silencer loss; generic.
+  tc.cp_air:
+    value: 1005.0
+    unit: J kg-1 K-1
+    description: Air specific heat used for the compressor (constant)
+    status: assumed
+    rationale: Textbook room-temperature value; actual air cp rises a little with temperature.
+  tc.kappa_air:
+    value: 1.4
+    unit: "-"
+    description: Air heat-capacity ratio used for the compressor (constant)
+    status: assumed
+    rationale: Textbook value for air.
+  tc.foul_eta_c_loss:
+    value: 0.05
+    unit: "-"
+    description: Relative loss of compressor efficiency at full turbocharger fouling
+    status: assumed
+    rationale: Size of the hidden health state; placeholder magnitude, no cited source.
+  tc.foul_eta_t_loss:
+    value: 0.07
+    unit: "-"
+    description: Relative loss of turbine efficiency at full turbocharger fouling
+    status: assumed
+    rationale: Size of the hidden health state; placeholder magnitude, no cited source.
+  tc.foul_k_loss:
+    value: 0.10
+    unit: "-"
+    description: Relative loss of turbine flow capacity at full turbocharger fouling
+    status: assumed
+    rationale: Nozzle-ring fouling narrows the gas passage; placeholder magnitude.
+
+  # ----------------------------------------------------------- gas and ambient
+  air.x_o2:
+    value: 0.2095
+    unit: "-"
+    description: Mole fraction of O2 in dry air
+    status: sourced
+    source: S07
+  air.x_n2:
+    value: 0.7808
+    unit: "-"
+    description: Mole fraction of N2 in dry air
+    status: sourced
+    source: S07
+  air.x_ar:
+    value: 0.0093
+    unit: "-"
+    description: Mole fraction of Ar in dry air
+    status: sourced
+    source: S07
+  env.iso_t_amb:
+    value: 298.15
+    unit: K
+    description: Reference ambient air temperature (25 C, ISO 3046-1)
+    status: sourced
+    source: S08
+  env.iso_p_amb:
+    value: 1.0e5
+    unit: Pa
+    description: Reference ambient pressure (1000 mbar, ISO 3046-1)
+    status: sourced
+    source: S08
+
+  # ------------------------------------------------------------------- fuels
+  fuel.diesel_like.latent_heat:
+    value: 61.4e3
+    unit: J mol-1
+    description: Heat of vaporisation of n-dodecane near 298 K
+    status: sourced
+    source: S03
+  fuel.methanol.latent_heat:
+    value: 37.39e3
+    unit: J mol-1
+    description: Heat of vaporisation of methanol near 298 K
+    status: derived
+    source: S04
+  # (derived: 1167 kJ/kg, the middle of S04's 1160-1174 kJ/kg, times 32.042 g/mol)
+
+  # ----------------------------------------- rated-point calibration targets
+  calib.target.t_exh_rated:
+    value: 700.0
+    unit: K
+    description: Target exhaust temperature before the turbine at rated point, clean, ISO, diesel-like
+    status: assumed
+    rationale: >-
+      Middle of the 600-800 K range plotted in S01 (indicative, read off a plot
+      axis). Used only to set the air-delivery coefficient.
+  calib.target.p_scav_rated:
+    value: 3.6e5
+    unit: Pa
+    description: Target scavenge pressure at rated point, clean, ISO
+    status: assumed
+    rationale: >-
+      Inside the 2-4 bar axis range of S01 (indicative) and near the top of it,
+      as expected at full load. Used only to set the turbine flow coefficient.
+  calib.target.n_tc_rated:
+    value: 16200.0
+    unit: rpm
+    description: Target turbocharger speed at rated point, clean, ISO
+    status: assumed
+    rationale: >-
+      About 1700 rad/s, inside the 1400-1800 rad/s axis range of S01 (indicative).
+      Used only to set the compressor diameter.
+  calib.target.cooler_dt_rated:
+    value: 12.0
+    unit: K
+    description: Scavenge air temperature minus cooling-water temperature at rated point, clean cooler
+    status: sourced
+    source: S08
+  calib.sfoc.lhv:
+    value: 42.7e6
+    unit: J kg-1
+    description: Fuel lower calorific value on which published MAN fuel consumption figures are based
+    status: sourced
+    source: S09
+  calib.sfoc.load_50:
+    value: 165.5
+    unit: g kWh-1
+    description: Published specific fuel consumption at 50 percent load (G60ME-C9.5, high-load tuning)
+    status: sourced
+    source: S10
+  calib.sfoc.load_75:
+    value: 163.0
+    unit: g kWh-1
+    description: Published specific fuel consumption at 75 percent load (G60ME-C9.5, high-load tuning)
+    status: sourced
+    source: S10
+  calib.sfoc.load_100:
+    value: 167.0
+    unit: g kWh-1
+    description: Published specific fuel consumption at 100 percent load (G60ME-C9.5, high-load tuning)
+    status: sourced
+    source: S10
+  calib.target.cooler_dp_rated:
+    value: 3000.0
+    unit: Pa
+    description: Target clean air-cooler pressure loss at rated point
+    status: assumed
+    rationale: A few tens of mbar is typical for a large cooler (recalled, not verified).
+
+  # ------------------------------------------- nominal (engineer's) model
+  nominal.lambda_del:
+    value: 0.987036
+    unit: "-"
+    description: Nominal model air delivery ratio (constant)
+    status: calibrated
+    calibration: >-
+      One-parameter least-squares fit of exhaust temperature on the healthy ISO
+      diesel-like plant: load 30-100 percent at three speed offsets from the propeller
+      law (scripts/calibrate_nominal.py). Enforced by tests/test_calibration.py.
+  nominal.phi_exhaust:
+    value: 0.422423
+    unit: "-"
+    description: Nominal model share of fuel energy that leaves with the exhaust gas
+    status: calibrated
+    calibration: >-
+      Closed form from the rated-point heat balance (what a shop test would give):
+      1 - indicated efficiency at rated fuel-energy rate - wall-loss fraction
+      (scripts/calibrate_nominal.py). Not fitted by least squares, because it is not
+      separately identifiable from the delivery ratio. Enforced by tests/test_calibration.py.

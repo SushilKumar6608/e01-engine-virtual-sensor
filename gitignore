@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+build/
+dist/
+
+# Secrets and local settings (never commit)
+.env
+.vscode/
+
+# Archives
+*.tar.gz
+*.zip
