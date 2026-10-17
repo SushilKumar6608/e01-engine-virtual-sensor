@@ -13,3 +13,6 @@ dist/
 # Archives
 *.tar.gz
 *.zip
+
+# Generated datasets (rebuild with scripts/build_dataset.py)
+/data/

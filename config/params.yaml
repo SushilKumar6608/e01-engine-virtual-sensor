@@ -125,6 +125,34 @@ params:
       (simulator report): it implies a rated brake mean effective pressure of about
       20 bar, against 21.0 bar quoted at L1 for the larger G60ME-C9.5 [S10] - same
       class, different engine, so this supports the order of magnitude only.
+  engine.eta_scale_methanol:
+    value: 1.0
+    unit: "-"
+    description: Multiplier on the indicated efficiency curve when burning methanol
+    status: assumed
+    rationale: >-
+      1.0 in all main data, so both fuels share one efficiency curve; no source was found
+      for a methanol-specific curve within the time limit set for that search. Only the
+      pre-specified efficiency stress test moves it (plus or minus 3 %), in the plant only.
+  operating.load_min:
+    value: 0.40
+    unit: "-"
+    description: Lower bound of the operating range, fraction of rated power
+    status: assumed
+    rationale: >-
+      Chosen because exhaust temperature is inside the indicative published band from 40 %
+      load up and not below (simulator report); no source covers lower loads and the model
+      has no auxiliary blower. Train, calibration and in-distribution test data stay at or
+      above this value.
+  operating.load_stress_min:
+    value: 0.30
+    unit: "-"
+    description: Lowest load used in the abstention stress test, fraction of rated power
+    status: assumed
+    rationale: >-
+      Data between this value and operating.load_min is generated only to test whether the
+      sensor refuses. No accuracy or coverage is reported there because the plant labels in
+      that region are unverified.
   engine.rated_power:
     value: 7.080e6
     unit: W
@@ -423,7 +451,7 @@ params:
 
   # ------------------------------------------- nominal (engineer's) model
   nominal.lambda_del:
-    value: 0.987036
+    value: 1.01492
     unit: "-"
     description: Nominal model air delivery ratio (constant)
     status: calibrated
@@ -441,3 +469,290 @@ params:
       1 - indicated efficiency at rated fuel-energy rate - wall-loss fraction
       (scripts/calibrate_nominal.py). Not fitted by least squares, because it is not
       separately identifiable from the delivery ratio. Enforced by tests/test_calibration.py.
+  dyn.tau_n_tc:
+    value: 6.0
+    unit: "s"
+    description: "Turbocharger speed lag (first-order time constant)"
+    status: assumed
+    rationale: >-
+      Rotor inertia makes the turbocharger follow load changes within seconds to tens of seconds; 6 s is a round assumed value, not taken from a source or a measurement.
+  dyn.tau_p_scav:
+    value: 3.0
+    unit: "s"
+    description: "Scavenge pressure lag (first-order time constant)"
+    status: assumed
+    rationale: >-
+      The scavenge receiver fills and empties quickly compared with the rotor; 3 s is an assumed round value, not from a source.
+  dyn.tau_t_scav:
+    value: 15.0
+    unit: "s"
+    description: "Scavenge air temperature lag, air cooler and receiver thermal mass"
+    status: assumed
+    rationale: >-
+      Metal and water thermal mass in the cooler slows the temperature; 15 s is an assumed round value, not from a source.
+  dyn.tau_t_exh:
+    value: 12.0
+    unit: "s"
+    description: "Exhaust gas temperature lag in the gas path before the turbine"
+    status: assumed
+    rationale: >-
+      Exhaust manifold and gas path thermal mass; 12 s is an assumed round value. The slow response of the thermocouple is a separate sensor lag.
+  health.tc.beta_a:
+    value: 1.2
+    unit: "-"
+    description: "Turbocharger fouling level at episode start, Beta distribution parameter a"
+    status: assumed
+    rationale: >-
+      The distribution of fouling across voyage segments is an assumption: mostly clean, with a tail towards heavy fouling. No fleet data used.
+  health.tc.beta_b:
+    value: 4.0
+    unit: "-"
+    description: "Turbocharger fouling level at episode start, Beta distribution parameter b"
+    status: assumed
+    rationale: >-
+      Assumed shape, see beta_a.
+  health.tc.max:
+    value: 0.8
+    unit: "-"
+    description: "Turbocharger fouling level, upper limit of the initial draw"
+    status: assumed
+    rationale: >-
+      Assumed. Fouling of 1.0 is kept for stress sweeps, not for the base draw.
+  health.cool.beta_a:
+    value: 1.2
+    unit: "-"
+    description: "Air cooler fouling level at episode start, Beta distribution parameter a"
+    status: assumed
+    rationale: >-
+      The distribution of fouling across voyage segments is an assumption: mostly clean, with a tail towards heavy fouling. No fleet data used.
+  health.cool.beta_b:
+    value: 3.0
+    unit: "-"
+    description: "Air cooler fouling level at episode start, Beta distribution parameter b"
+    status: assumed
+    rationale: >-
+      Assumed shape, see beta_a.
+  health.cool.max:
+    value: 0.8
+    unit: "-"
+    description: "Air cooler fouling level, upper limit of the initial draw"
+    status: assumed
+    rationale: >-
+      Assumed, see health.tc.max.
+  health.drift_per_h_sd:
+    value: 0.05
+    unit: "1/h"
+    description: "Spread of the fouling growth rate inside an episode"
+    status: assumed
+    rationale: >-
+      Fouling grows slowly and never shrinks inside a voyage segment. The rate is drawn as the absolute value of a normal variable with this standard deviation. Assumed, not from a source.
+  amb.p_mean:
+    value: 101325.0
+    unit: "Pa"
+    description: "Mean ambient pressure of the episode population"
+    status: assumed
+    rationale: >-
+      Standard atmosphere, used as the centre of the sampled distribution.
+  amb.p_sd:
+    value: 800.0
+    unit: "Pa"
+    description: "Spread of ambient pressure between episodes"
+    status: assumed
+    rationale: >-
+      Synoptic weather variation of about 8 hPa standard deviation. Assumed round value.
+  amb.t_drift_amp_max:
+    value: 1.5
+    unit: "K"
+    description: "Largest slow ambient temperature swing inside an episode"
+    status: assumed
+    rationale: >-
+      Slow variation of ambient air temperature during a voyage segment; amplitude assumed.
+  amb.p_drift_amp_max:
+    value: 150.0
+    unit: "Pa"
+    description: "Largest slow ambient pressure swing inside an episode"
+    status: assumed
+    rationale: >-
+      Assumed small slow variation.
+  sens.speed.noise:
+    value: 0.05
+    unit: "rpm"
+    description: "Engine speed sensor noise, standard deviation"
+    status: assumed
+    rationale: >-
+      Typical order for an industrial speed pickup; no datasheet cited. Assumed.
+  sens.speed.res:
+    value: 0.1
+    unit: "rpm"
+    description: "Engine speed sensor resolution (quantisation step)"
+    status: assumed
+    rationale: >-
+      Assumed round value.
+  sens.fuel.noise_rel:
+    value: 0.004
+    unit: "-"
+    description: "Fuel flow sensor noise, relative standard deviation"
+    status: assumed
+    rationale: >-
+      Typical order for a flow meter on heavy or light fuel; no datasheet cited. Assumed.
+  sens.fuel.bias_sd_rel:
+    value: 0.004
+    unit: "-"
+    description: "Fuel flow sensor bias between episodes, relative standard deviation"
+    status: assumed
+    rationale: >-
+      Small calibration bias, assumed.
+  sens.fuel.res:
+    value: 0.0001
+    unit: "kg/s"
+    description: "Fuel flow sensor resolution (quantisation step)"
+    status: assumed
+    rationale: >-
+      Assumed round value.
+  sens.pscav.noise:
+    value: 0.008
+    unit: "bar"
+    description: "Scavenge pressure sensor noise, standard deviation"
+    status: assumed
+    rationale: >-
+      About 0.1 percent of a 6 bar range, a typical order for a pressure transmitter; no datasheet cited. Assumed.
+  sens.pscav.drift_sd_per_h:
+    value: 0.01
+    unit: "bar/h"
+    description: "Scavenge pressure sensor drift rate, standard deviation between episodes"
+    status: assumed
+    rationale: >-
+      Slow zero drift of a transmitter, assumed. Visible only over hours.
+  sens.pscav.res:
+    value: 0.001
+    unit: "bar"
+    description: "Scavenge pressure sensor resolution (quantisation step)"
+    status: assumed
+    rationale: >-
+      Assumed round value.
+  sens.tscav.noise:
+    value: 0.15
+    unit: "K"
+    description: "Scavenge air temperature sensor noise, standard deviation"
+    status: assumed
+    rationale: >-
+      Typical order for a resistance thermometer; no datasheet cited. Assumed.
+  sens.tscav.tau:
+    value: 8.0
+    unit: "s"
+    description: "Scavenge air temperature sensor response time"
+    status: assumed
+    rationale: >-
+      Sensor sheath lag, assumed. On top of the physical lag.
+  sens.tscav.res:
+    value: 0.1
+    unit: "K"
+    description: "Scavenge air temperature sensor resolution (quantisation step)"
+    status: assumed
+    rationale: >-
+      Assumed round value.
+  sens.ntc.noise_rel:
+    value: 0.003
+    unit: "-"
+    description: "Turbocharger speed sensor noise, relative standard deviation"
+    status: assumed
+    rationale: >-
+      Assumed small relative noise.
+  sens.ntc.res:
+    value: 10.0
+    unit: "rpm"
+    description: "Turbocharger speed sensor resolution (quantisation step)"
+    status: assumed
+    rationale: >-
+      Assumed round value.
+  sens.ntc.dropout_rate_per_h:
+    value: 0.5
+    unit: "1/h"
+    description: "Turbocharger speed sensor dropout events per hour"
+    status: assumed
+    rationale: >-
+      Intermittent signal loss on a high-speed pickup, assumed rate.
+  sens.ntc.dropout_len_min:
+    value: 2.0
+    unit: "s"
+    description: "Shortest turbocharger speed dropout"
+    status: assumed
+    rationale: >-
+      Shortest signal loss of an intermittent pickup, an assumed round value, not from a source.
+  sens.ntc.dropout_len_max:
+    value: 20.0
+    unit: "s"
+    description: "Longest turbocharger speed dropout"
+    status: assumed
+    rationale: >-
+      Longest signal loss of an intermittent pickup, an assumed round value, not from a source.
+  sens.tamb.noise:
+    value: 0.1
+    unit: "K"
+    description: "Ambient temperature sensor noise, standard deviation"
+    status: assumed
+    rationale: >-
+      Typical order for an air temperature probe on deck; no datasheet cited. Assumed.
+  sens.tamb.bias_sd:
+    value: 0.2
+    unit: "K"
+    description: "Ambient temperature sensor bias between episodes, standard deviation"
+    status: assumed
+    rationale: >-
+      Small installation offset of the ambient probe (radiation, position), assumed.
+  sens.tamb.res:
+    value: 0.1
+    unit: "K"
+    description: "Ambient temperature sensor resolution (quantisation step)"
+    status: assumed
+    rationale: >-
+      Assumed round value.
+  sens.pamb.noise:
+    value: 0.0003
+    unit: "bar"
+    description: "Ambient pressure sensor noise, standard deviation"
+    status: assumed
+    rationale: >-
+      Typical order for a barometric transmitter; no datasheet cited. Assumed.
+  sens.pamb.bias_sd:
+    value: 0.002
+    unit: "bar"
+    description: "Ambient pressure sensor bias between episodes, standard deviation"
+    status: assumed
+    rationale: >-
+      Small calibration offset of the barometer, assumed.
+  sens.pamb.res:
+    value: 0.0001
+    unit: "bar"
+    description: "Ambient pressure sensor resolution (quantisation step)"
+    status: assumed
+    rationale: >-
+      Assumed round value.
+  sens.texh.noise:
+    value: 1.0
+    unit: "K"
+    description: "Exhaust temperature sensor noise, standard deviation"
+    status: assumed
+    rationale: >-
+      Typical order for a thermocouple chain in a hot gas stream; no datasheet cited. Assumed.
+  sens.texh.bias_sd:
+    value: 1.0
+    unit: "K"
+    description: "Exhaust temperature sensor bias between episodes, standard deviation"
+    status: assumed
+    rationale: >-
+      Small installation or calibration bias, assumed. Large biases are injected faults, not part of this.
+  sens.texh.tau:
+    value: 8.0
+    unit: "s"
+    description: "Exhaust temperature sensor response time (slow response)"
+    status: assumed
+    rationale: >-
+      Thermocouple sheath lag, assumed. On top of the physical gas-path lag.
+  sens.texh.res:
+    value: 0.1
+    unit: "K"
+    description: "Exhaust temperature sensor resolution (quantisation step)"
+    status: assumed
+    rationale: >-
+      Assumed round value.

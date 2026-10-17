@@ -134,11 +134,16 @@ class Registry:
             data.params[pid] = data.params[pid].model_copy(update={"value": float(val)})
         return Registry(data)
 
-    def content_hash(self) -> str:
-        """SHA-256 over ids, values, units and status (not over prose)."""
+    def content_hash(self, exclude_prefixes: tuple[str, ...] = ()) -> str:
+        """SHA-256 over ids, values, units and status (not over prose).
+
+        ``exclude_prefixes`` leaves out parameters of models that consume the data (for example
+        ``nominal.``), so fitting them later does not change the identity of the simulated data.
+        """
         canon = {
             pid: [p.value, p.unit, p.status, p.source]
             for pid, p in sorted(self._data.params.items())
+            if not pid.startswith(exclude_prefixes)
         }
         return hashlib.sha256(json.dumps(canon, sort_keys=True).encode()).hexdigest()
 

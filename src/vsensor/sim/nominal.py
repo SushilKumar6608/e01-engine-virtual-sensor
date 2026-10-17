@@ -21,11 +21,12 @@ How it differs from the plant (on purpose - see design doc, section 5.2)
   effect through the measured scavenge pressure and temperature.
 
 The two constants (delivery ratio, exhaust share) are calibrated once on the
-*healthy* plant at ISO ambient with the diesel-like fuel over the 30-100 % load range
+*healthy* plant at ISO ambient with the diesel-like fuel over the 40-100 % operating range
 (scripts/calibrate_nominal.py). That is the commissioning data an engineer would
-plausibly have. It makes the baseline fair rather than a straw man. It is still a
-two-parameter model with no load-dependent efficiency curve - the extension
-"M0b" with such a curve is possible and is listed as an open decision.
+plausibly have, called the *commissioning baseline*. It is still a two-parameter model with
+no load-dependent efficiency curve. The stronger baseline M0b (delivery ratio that depends on
+the measured boost) and the way M0 and M0b are fitted on the same training episodes are fixed
+in docs/MODEL_CHOICES.md before any test result exists.
 
 Leakage rule: this function must never receive hidden plant states. Its argument
 list is the contract, and tests/test_nominal.py checks it.

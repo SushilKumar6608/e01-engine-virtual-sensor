@@ -110,11 +110,12 @@ def calibrate_rated(reg0: Registry) -> Registry:
 
 # ------------------------------------------------------------- 3. nominal model
 def healthy_grid(plant: Plant, fuel: str = "diesel_like"):
-    """Commissioning-style grid: load 30-100 % at three speed offsets from the propeller law.
+    """Commissioning-style grid: load from the operating minimum to 100 % at three speed offsets
+    from the propeller law.
 
     Speed is capped at rated speed. Returns the converged healthy ISO plant solution.
     """
-    loads = np.linspace(0.30, 1.0, 15)
+    loads = np.linspace(plant.reg["operating.load_min"], 1.0, 13)
     pts_n, pts_p = [], []
     for s in (0.93, 1.0, 1.07):
         n_prop = plant.n_rated * loads ** (1.0 / 3.0)

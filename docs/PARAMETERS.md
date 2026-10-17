@@ -2,7 +2,7 @@
 
 **All values describe a simulated, generic engine. Nothing is validated against a real engine.** Generated from `config/params.yaml` by `scripts/make_params_doc.py`; do not edit by hand.
 
-46 parameters: 15 sourced, 1 derived, 10 calibrated, 20 assumed. Registry hash `7cbe44d3df36cbc2`.
+90 parameters: 15 sourced, 1 derived, 10 calibrated, 64 assumed. Registry hash `dcfd123ddbc260e7`.
 
 | Status | Meaning |
 |---|---|
@@ -78,7 +78,7 @@
 | `engine.eta_ind_curv` | 0.235576 | - | Curvature of indicated efficiency versus load (parabola) | Fitted with eta_ind_max and eta_ind_x_opt to the published fuel-consumption points (see engine.eta_ind_max). The parabola is only constrained between 50 and 100 percent load; below that it is an extrapolation. Enforced by tests/test_calibration.py. |
 | `engine.eta_ind_max` | 0.547449 | - | Peak gross indicated efficiency (work on piston / fuel energy) | With eta_ind_curv and eta_ind_x_opt, fitted so brake efficiency at 50/75/100 percent load on the propeller law equals the published fuel-consumption points (calib.sfoc.*, S10, converted with calib.sfoc.lhv, S09). Exact 3-point fit by scripts/calibrate_efficiency.py. Enforced by tests/test_calibration.py. |
 | `engine.eta_ind_x_opt` | 0.607463 | - | Relative fuel-energy rate at which indicated efficiency peaks | Fitted with eta_ind_max and eta_ind_curv to the published fuel-consumption points (see engine.eta_ind_max). Enforced by tests/test_calibration.py. |
-| `nominal.lambda_del` | 0.987036 | - | Nominal model air delivery ratio (constant) | One-parameter least-squares fit of exhaust temperature on the healthy ISO diesel-like plant: load 30-100 percent at three speed offsets from the propeller law (scripts/calibrate_nominal.py). Enforced by tests/test_calibration.py. |
+| `nominal.lambda_del` | 1.01492 | - | Nominal model air delivery ratio (constant) | One-parameter least-squares fit of exhaust temperature on the healthy ISO diesel-like plant: load 30-100 percent at three speed offsets from the propeller law (scripts/calibrate_nominal.py). Enforced by tests/test_calibration.py. |
 | `nominal.phi_exhaust` | 0.422423 | - | Nominal model share of fuel energy that leaves with the exhaust gas | Closed form from the rated-point heat balance (what a shop test would give): 1 - indicated efficiency at rated fuel-energy rate - wall-loss fraction (scripts/calibrate_nominal.py). Not fitted by least squares, because it is not separately identifiable from the delivery ratio. Enforced by tests/test_calibration.py. |
 | `scav.lambda_coeff` | 2.26877 | - | Air delivery ratio coefficient (delivery ratio = coeff * sqrt(1 - p_exh/p_scav)) | Set by scripts/calibrate_rated.py so rated clean ISO exhaust temperature hits calib.target.t_exh_rated. Enforced by tests/test_calibration.py. |
 | `tc.d_comp` | 0.58283 | m | Compressor wheel diameter (sets turbocharger speed) | Set by scripts/calibrate_rated.py so rated clean turbocharger speed equals calib.target.n_tc_rated. Enforced by tests/test_calibration.py. |
@@ -88,6 +88,10 @@
 
 | Id | Value | Unit | What it is | Evidence |
 |---|---|---|---|---|
+| `amb.p_drift_amp_max` | 150 | Pa | Largest slow ambient pressure swing inside an episode | Assumed small slow variation. |
+| `amb.p_mean` | 101325 | Pa | Mean ambient pressure of the episode population | Standard atmosphere, used as the centre of the sampled distribution. |
+| `amb.p_sd` | 800 | Pa | Spread of ambient pressure between episodes | Synoptic weather variation of about 8 hPa standard deviation. Assumed round value. |
+| `amb.t_drift_amp_max` | 1.5 | K | Largest slow ambient temperature swing inside an episode | Slow variation of ambient air temperature during a voyage segment; amplitude assumed. |
 | `calib.target.cooler_dp_rated` | 3000 | Pa | Target clean air-cooler pressure loss at rated point | A few tens of mbar is typical for a large cooler (recalled, not verified). |
 | `calib.target.n_tc_rated` | 16200 | rpm | Target turbocharger speed at rated point, clean, ISO | About 1700 rad/s, inside the 1400-1800 rad/s axis range of S01 (indicative). Used only to set the compressor diameter. |
 | `calib.target.p_scav_rated` | 360000 | Pa | Target scavenge pressure at rated point, clean, ISO | Inside the 2-4 bar axis range of S01 (indicative) and near the top of it, as expected at full load. Used only to set the turbine flow coefficient. |
@@ -95,9 +99,49 @@
 | `cooler.foul_dp_gain` | 1 | - | Relative increase of cooler pressure loss at full fouling | Fouled coolers restrict flow; magnitude is a placeholder, no cited source. |
 | `cooler.foul_eps_loss` | 0.25 | - | Relative loss of cooler effectiveness at full fouling (fouling = 1) | Sets the size of the hidden health state. Chosen large enough to be visible in scavenge temperature; no cited source for real fouling rates. |
 | `cooler.t_coolant_offset` | 0 | K | Charge-air coolant temperature minus ambient air temperature | Simplification: coolant (sea water) tracks ambient air, like the ISO reference condition where both are 25 C. Real sea and air temperatures differ. |
+| `dyn.tau_n_tc` | 6 | s | Turbocharger speed lag (first-order time constant) | Rotor inertia makes the turbocharger follow load changes within seconds to tens of seconds; 6 s is a round assumed value, not taken from a source or a measurement. |
+| `dyn.tau_p_scav` | 3 | s | Scavenge pressure lag (first-order time constant) | The scavenge receiver fills and empties quickly compared with the rotor; 3 s is an assumed round value, not from a source. |
+| `dyn.tau_t_exh` | 12 | s | Exhaust gas temperature lag in the gas path before the turbine | Exhaust manifold and gas path thermal mass; 12 s is an assumed round value. The slow response of the thermocouple is a separate sensor lag. |
+| `dyn.tau_t_scav` | 15 | s | Scavenge air temperature lag, air cooler and receiver thermal mass | Metal and water thermal mass in the cooler slows the temperature; 15 s is an assumed round value, not from a source. |
+| `engine.eta_scale_methanol` | 1 | - | Multiplier on the indicated efficiency curve when burning methanol | 1.0 in all main data, so both fuels share one efficiency curve; no source was found for a methanol-specific curve within the time limit set for that search. Only the pre-specified efficiency stress test moves it (plus or minus 3 %), in the plant only. |
 | `engine.f_wall` | 0.05 | - | Fraction of fuel energy lost through cylinder walls, jacket and piston cooling | Generic heat-balance share (a few percent). Constant in the plant. Not verified in a cited source. |
 | `engine.fmep` | 90000 | Pa | Friction mean effective pressure (constant) | Generic order of magnitude (about 1 bar) for a large slow-speed engine. Friction power then scales with speed. Not verified in a cited source. |
 | `engine.stroke` | 2.2 | m | Piston stroke | Not found in any cited source. 2.2 m is my recollection of the usual stroke for 50-cm-bore ME-type engines. It only scales displacement. Consistency check (simulator report): it implies a rated brake mean effective pressure of about 20 bar, against 21.0 bar quoted at L1 for the larger G60ME-C9.5 [S10] - same class, different engine, so this supports the order of magnitude only. |
+| `health.cool.beta_a` | 1.2 | - | Air cooler fouling level at episode start, Beta distribution parameter a | The distribution of fouling across voyage segments is an assumption: mostly clean, with a tail towards heavy fouling. No fleet data used. |
+| `health.cool.beta_b` | 3 | - | Air cooler fouling level at episode start, Beta distribution parameter b | Assumed shape, see beta_a. |
+| `health.cool.max` | 0.8 | - | Air cooler fouling level, upper limit of the initial draw | Assumed, see health.tc.max. |
+| `health.drift_per_h_sd` | 0.05 | 1/h | Spread of the fouling growth rate inside an episode | Fouling grows slowly and never shrinks inside a voyage segment. The rate is drawn as the absolute value of a normal variable with this standard deviation. Assumed, not from a source. |
+| `health.tc.beta_a` | 1.2 | - | Turbocharger fouling level at episode start, Beta distribution parameter a | The distribution of fouling across voyage segments is an assumption: mostly clean, with a tail towards heavy fouling. No fleet data used. |
+| `health.tc.beta_b` | 4 | - | Turbocharger fouling level at episode start, Beta distribution parameter b | Assumed shape, see beta_a. |
+| `health.tc.max` | 0.8 | - | Turbocharger fouling level, upper limit of the initial draw | Assumed. Fouling of 1.0 is kept for stress sweeps, not for the base draw. |
+| `operating.load_min` | 0.4 | - | Lower bound of the operating range, fraction of rated power | Chosen because exhaust temperature is inside the indicative published band from 40 % load up and not below (simulator report); no source covers lower loads and the model has no auxiliary blower. Train, calibration and in-distribution test data stay at or above this value. |
+| `operating.load_stress_min` | 0.3 | - | Lowest load used in the abstention stress test, fraction of rated power | Data between this value and operating.load_min is generated only to test whether the sensor refuses. No accuracy or coverage is reported there because the plant labels in that region are unverified. |
+| `sens.fuel.bias_sd_rel` | 0.004 | - | Fuel flow sensor bias between episodes, relative standard deviation | Small calibration bias, assumed. |
+| `sens.fuel.noise_rel` | 0.004 | - | Fuel flow sensor noise, relative standard deviation | Typical order for a flow meter on heavy or light fuel; no datasheet cited. Assumed. |
+| `sens.fuel.res` | 0.0001 | kg/s | Fuel flow sensor resolution (quantisation step) | Assumed round value. |
+| `sens.ntc.dropout_len_max` | 20 | s | Longest turbocharger speed dropout | Longest signal loss of an intermittent pickup, an assumed round value, not from a source. |
+| `sens.ntc.dropout_len_min` | 2 | s | Shortest turbocharger speed dropout | Shortest signal loss of an intermittent pickup, an assumed round value, not from a source. |
+| `sens.ntc.dropout_rate_per_h` | 0.5 | 1/h | Turbocharger speed sensor dropout events per hour | Intermittent signal loss on a high-speed pickup, assumed rate. |
+| `sens.ntc.noise_rel` | 0.003 | - | Turbocharger speed sensor noise, relative standard deviation | Assumed small relative noise. |
+| `sens.ntc.res` | 10 | rpm | Turbocharger speed sensor resolution (quantisation step) | Assumed round value. |
+| `sens.pamb.bias_sd` | 0.002 | bar | Ambient pressure sensor bias between episodes, standard deviation | Small calibration offset of the barometer, assumed. |
+| `sens.pamb.noise` | 0.0003 | bar | Ambient pressure sensor noise, standard deviation | Typical order for a barometric transmitter; no datasheet cited. Assumed. |
+| `sens.pamb.res` | 0.0001 | bar | Ambient pressure sensor resolution (quantisation step) | Assumed round value. |
+| `sens.pscav.drift_sd_per_h` | 0.01 | bar/h | Scavenge pressure sensor drift rate, standard deviation between episodes | Slow zero drift of a transmitter, assumed. Visible only over hours. |
+| `sens.pscav.noise` | 0.008 | bar | Scavenge pressure sensor noise, standard deviation | About 0.1 percent of a 6 bar range, a typical order for a pressure transmitter; no datasheet cited. Assumed. |
+| `sens.pscav.res` | 0.001 | bar | Scavenge pressure sensor resolution (quantisation step) | Assumed round value. |
+| `sens.speed.noise` | 0.05 | rpm | Engine speed sensor noise, standard deviation | Typical order for an industrial speed pickup; no datasheet cited. Assumed. |
+| `sens.speed.res` | 0.1 | rpm | Engine speed sensor resolution (quantisation step) | Assumed round value. |
+| `sens.tamb.bias_sd` | 0.2 | K | Ambient temperature sensor bias between episodes, standard deviation | Small installation offset of the ambient probe (radiation, position), assumed. |
+| `sens.tamb.noise` | 0.1 | K | Ambient temperature sensor noise, standard deviation | Typical order for an air temperature probe on deck; no datasheet cited. Assumed. |
+| `sens.tamb.res` | 0.1 | K | Ambient temperature sensor resolution (quantisation step) | Assumed round value. |
+| `sens.texh.bias_sd` | 1 | K | Exhaust temperature sensor bias between episodes, standard deviation | Small installation or calibration bias, assumed. Large biases are injected faults, not part of this. |
+| `sens.texh.noise` | 1 | K | Exhaust temperature sensor noise, standard deviation | Typical order for a thermocouple chain in a hot gas stream; no datasheet cited. Assumed. |
+| `sens.texh.res` | 0.1 | K | Exhaust temperature sensor resolution (quantisation step) | Assumed round value. |
+| `sens.texh.tau` | 8 | s | Exhaust temperature sensor response time (slow response) | Thermocouple sheath lag, assumed. On top of the physical gas-path lag. |
+| `sens.tscav.noise` | 0.15 | K | Scavenge air temperature sensor noise, standard deviation | Typical order for a resistance thermometer; no datasheet cited. Assumed. |
+| `sens.tscav.res` | 0.1 | K | Scavenge air temperature sensor resolution (quantisation step) | Assumed round value. |
+| `sens.tscav.tau` | 8 | s | Scavenge air temperature sensor response time | Sensor sheath lag, assumed. On top of the physical lag. |
 | `tc.cp_air` | 1005 | J kg-1 K-1 | Air specific heat used for the compressor (constant) | Textbook room-temperature value; actual air cp rises a little with temperature. |
 | `tc.eta_c` | 0.84 | - | Compressor isentropic efficiency (clean, constant) | Typical for large turbochargers; constant for simplicity (no compressor map). |
 | `tc.eta_mech` | 0.98 | - | Turbocharger mechanical efficiency | Generic bearing-loss figure. |

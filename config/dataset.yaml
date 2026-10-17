@@ -1,0 +1,114 @@
+# Dataset configuration (SIMULATED DATA). Validated by src/vsensor/data/config.py.
+# Every choice here is a design decision or an assumption; none comes from a real engine.
+# Physical, sensor and dynamics numbers live in params.yaml (the registry), not here.
+name: dataset_v1
+schema_version: 1
+base_seed: 20261017          # change this to generate a completely fresh dataset
+sampling_hz: 1.0
+episode_duration_s: 1800     # 30 minutes per episode (one voyage segment)
+
+profile:                     # how load, speed and weather move inside an episode
+  hold_s: [150, 500]         # time spent at one operating level (at least 10x the longest lag)
+  ramp_s: [60, 300]          # time to move from one level to the next
+  speed_factor_range: [0.94, 1.06]   # speed relative to the propeller law at the same power (weather, light running)
+  smoothing_sigma_s: 10.0    # smooths the corners of the ramps
+  wiggle_sd: 0.005           # operator and sea-state fluctuation of power, fraction of rated
+  wiggle_tau_s: 30.0
+
+fault_injection:             # only used by splits with fault_cycle (injected on the exhaust temperature sensor)
+  start_s: [300, 1200]
+  bias_k: [5.0, 30.0]
+  drift_k_per_min: [0.5, 4.0]
+  dropout_s: [20.0, 180.0]
+
+coverage:                    # gate 5, fixed before the data were generated
+  bins: 10
+  required_prior_mass: 0.01  # a bin must be required when this share of the planned operating region falls in it
+  min_rows: 20
+  min_episodes: 3
+  small_split_episodes: 30   # splits with fewer episodes use the relaxed numbers below
+  small_bins: 6
+  small_min_rows: 10
+  small_min_episodes: 2
+
+splits:
+  train:
+    seed_id: 1
+    episodes: 220
+    purpose: Fit models
+    fuel_mix: {diesel_like: 0.6, methanol: 0.4}
+    load_band: {diesel_like: [0.40, 0.90], methanol: [0.55, 0.90]}
+    t_amb_k: [284.5, 306.5]
+  validation:
+    seed_id: 2
+    episodes: 150
+    purpose: Choose features and tune models (never the test sets)
+    fuel_mix: {diesel_like: 0.6, methanol: 0.4}
+    load_band: {diesel_like: [0.40, 0.90], methanol: [0.55, 0.90]}
+    t_amb_k: [284.5, 306.5]
+  calibration:
+    seed_id: 3
+    episodes: 150
+    purpose: Conformal calibration and abstention thresholds
+    fuel_mix: {diesel_like: 0.6, methanol: 0.4}
+    load_band: {diesel_like: [0.40, 0.90], methanol: [0.55, 0.90]}
+    t_amb_k: [284.5, 306.5]
+  test_in_distribution:
+    seed_id: 4
+    episodes: 100
+    purpose: Calibration check under no shift (used once)
+    fuel_mix: {diesel_like: 0.6, methanol: 0.4}
+    load_band: {diesel_like: [0.40, 0.90], methanol: [0.55, 0.90]}
+    t_amb_k: [284.5, 306.5]
+  test_regime_high_load:
+    seed_id: 5
+    episodes: 60
+    purpose: Held-out regime, top load band above 90 percent (used once)
+    fuel_mix: {diesel_like: 0.6, methanol: 0.4}
+    load_band: {diesel_like: [0.90, 1.00], methanol: [0.90, 1.00]}
+    t_amb_k: [284.5, 306.5]
+  test_regime_methanol_low_load:
+    seed_id: 6
+    episodes: 24
+    purpose: Held-out regime, methanol at 40 to 55 percent load (used once)
+    fuel_mix: {methanol: 1.0}
+    load_band: {methanol: [0.40, 0.55]}
+    t_amb_k: [284.5, 306.5]
+  test_regime_cold_ambient:
+    seed_id: 7
+    episodes: 24
+    purpose: Held-out regime, cold ambient air (used once)
+    fuel_mix: {diesel_like: 0.6, methanol: 0.4}
+    load_band: {diesel_like: [0.40, 0.90], methanol: [0.55, 0.90]}
+    t_amb_k: [268.0, 279.5]
+  test_sensor_fault:
+    seed_id: 8
+    episodes: 100
+    purpose: Injected bias, drift and dropout on the exhaust temperature sensor (used once)
+    fuel_mix: {diesel_like: 0.6, methanol: 0.4}
+    load_band: {diesel_like: [0.40, 0.90], methanol: [0.55, 0.90]}
+    t_amb_k: [284.5, 306.5]
+    fault_cycle: [none, bias, drift, dropout]
+  stress_low_load:
+    seed_id: 9
+    episodes: 150
+    purpose: Abstention stress test at 30 to 40 percent load. No accuracy or coverage is reported here because the labels are unverified.
+    fuel_mix: {diesel_like: 0.6, methanol: 0.4}
+    load_band: {diesel_like: [0.30, 0.40], methanol: [0.30, 0.40]}
+    t_amb_k: [284.5, 306.5]
+  stress_methanol_efficiency_minus:
+    seed_id: 10
+    episodes: 20
+    purpose: Methanol efficiency 3 percent lower in the plant only (pre-specified stress test)
+    fuel_mix: {methanol: 1.0}
+    load_band: {methanol: [0.55, 0.90]}
+    t_amb_k: [284.5, 306.5]
+    eta_scale_methanol: 0.97
+  stress_methanol_efficiency_plus:
+    seed_id: 11
+    episodes: 20
+    purpose: Methanol efficiency 3 percent higher in the plant only (pre-specified stress test)
+    fuel_mix: {methanol: 1.0}
+    load_band: {methanol: [0.55, 0.90]}
+    t_amb_k: [284.5, 306.5]
+    eta_scale_methanol: 1.03

@@ -1,7 +1,7 @@
 PY ?= python3
 export PYTHONPATH := src
 
-.PHONY: test thermo cantera-check calibrate params-doc report
+.PHONY: data data-check data-card test thermo cantera-check calibrate params-doc report
 
 test:            ## run all unit tests
 	$(PY) -m pytest
@@ -20,3 +20,12 @@ params-doc:      ## regenerate docs/PARAMETERS.md from the registry
 
 report:          ## Simulator evidence report -> reports/simulator/
 	$(PY) scripts/simulator_report.py
+
+data:            ## build the simulated dataset, run the nine gates, release only if all pass
+	$(PY) scripts/build_dataset.py
+
+data-check:      ## same, plus a full second rebuild compared by hash
+	$(PY) scripts/build_dataset.py --full-check
+
+data-card:       ## regenerate docs/DATA_CARD.md and the data quality report
+	$(PY) scripts/make_data_card.py

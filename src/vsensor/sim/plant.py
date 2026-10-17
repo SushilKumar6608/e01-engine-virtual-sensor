@@ -128,6 +128,9 @@ class Plant:
         self.fmep = r["engine.fmep"]
         self.f_wall = r["engine.f_wall"]
         self.p_fric_rated = self.fmep * self.v_disp * self.n_rated / 60.0
+        # Efficiency scale per fuel. 1.0 for both in the main data (shared curve, an assumption);
+        # the methanol value is only moved in the pre-specified efficiency stress test.
+        self.eta_scale = {"diesel_like": 1.0, "methanol": r["engine.eta_scale_methanol"]}
         # reference fuel-energy rate that gives rated brake power at rated speed
         self.q_ref = (self.p_rated + self.p_fric_rated) / float(self.eta_indicated(1.0))
         # air path
@@ -156,13 +159,14 @@ class Plant:
         self.p_iso = r["env.iso_p_amb"]
 
     # ------------------------------------------------------------------ engine
-    def eta_indicated(self, x):
+    def eta_indicated(self, x, fuel: str = "diesel_like"):
         """Gross indicated efficiency versus relative fuel-energy rate x = Q_fuel / Q_ref.
 
         A parabola with its peak at x_opt. Generic shape (assumption), not fitted to data.
+        Multiplied by the fuel's efficiency scale (1.0 unless a stress test moves it).
         """
         x = np.asarray(x, dtype=float)
-        return self.eta_max * (1.0 - self.eta_curv * (x - self.x_opt) ** 2)
+        return self.eta_scale[fuel] * self.eta_max * (1.0 - self.eta_curv * (x - self.x_opt) ** 2)
 
     def friction_power(self, n_rpm):
         """Friction power [W] = FMEP * displacement * cycles per second (two-stroke: 1 cycle/rev)."""
@@ -170,16 +174,17 @@ class Plant:
 
     def brake_power(self, m_fuel, n_rpm, fuel: str = "diesel_like"):
         q = np.asarray(m_fuel, dtype=float) * self.fuels[fuel].lhv_liquid
-        return q * self.eta_indicated(q / self.q_ref) - self.friction_power(n_rpm)
+        return q * self.eta_indicated(q / self.q_ref, fuel) - self.friction_power(n_rpm)
 
     def fuel_flow_for_power(self, p_brake, n_rpm, fuel: str = "diesel_like"):
         """Fuel mass flow [kg/s] that gives the requested brake power at the given speed (Newton)."""
         p_brake, n_rpm = np.broadcast_arrays(np.asarray(p_brake, float), np.asarray(n_rpm, float))
         target = p_brake + self.friction_power(n_rpm)  # required indicated work
-        x = np.maximum(target / self.q_ref / self.eta_max, 0.05)
+        scale = self.eta_scale[fuel]
+        x = np.maximum(target / self.q_ref / (scale * self.eta_max), 0.05)
         for _ in range(60):
-            f = self.q_ref * x * self.eta_indicated(x) - target
-            df = self.q_ref * self.eta_max * (
+            f = self.q_ref * x * self.eta_indicated(x, fuel) - target
+            df = self.q_ref * scale * self.eta_max * (
                 1.0 - self.eta_curv * (x - self.x_opt) ** 2 - 2.0 * self.eta_curv * x * (x - self.x_opt)
             )
             dx = f / df
@@ -201,7 +206,7 @@ class Plant:
     def heat_to_exhaust(self, m_fuel, fuel: str = "diesel_like"):
         """Fuel energy that is neither piston work nor wall loss, i.e. what leaves with the gas [W]."""
         q = np.asarray(m_fuel, dtype=float) * self.fuels[fuel].lhv_liquid
-        return q * (1.0 - self.eta_indicated(q / self.q_ref) - self.f_wall)
+        return q * (1.0 - self.eta_indicated(q / self.q_ref, fuel) - self.f_wall)
 
     def _exhaust_state(self, fu: Fuel, m_fuel, m_air, t_scav, q_exhaust):
         """Exhaust mole flows and temperature from the energy balance (steps 1-3 of the module text)."""
@@ -249,7 +254,7 @@ class Plant:
         # Quantities that do not depend on the air path ---------------------------------
         q_fuel = m_fuel * fu.lhv_liquid
         x_rel = q_fuel / self.q_ref
-        eta_i = self.eta_indicated(x_rel)
+        eta_i = self.eta_indicated(x_rel, fuel)
         p_ind = eta_i * q_fuel
         q_wall = self.f_wall * q_fuel
         p_fric = self.friction_power(n_rpm)

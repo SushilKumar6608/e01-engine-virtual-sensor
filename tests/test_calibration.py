@@ -75,9 +75,10 @@ def test_stored_calibrations_are_not_stale():
 
 
 def test_nominal_fit_error_on_the_healthy_grid_is_recorded():
-    """Regression guard on the baseline's own fit error (about 29 K RMSE when written, dominated by
-    the 30-40 % load region). If this drops sharply the baseline got stronger; if it jumps, check why."""
+    """Regression guard on the commissioning baseline's own fit error over the 40-100 % operating
+    range (about 14 K RMSE when written). If this drops sharply the baseline got stronger; if it
+    jumps, check why."""
     g = healthy_grid(Plant(REG))
     err = NominalModel(REG).predict(g.n_rpm, g.m_fuel, g.p_scav, g.t_scav) - g.t_exh
     rmse = float(np.sqrt(np.mean(err**2)))
-    assert 15.0 < rmse < 40.0, rmse
+    assert 8.0 < rmse < 25.0, rmse

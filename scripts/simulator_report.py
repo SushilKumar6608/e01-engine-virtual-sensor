@@ -147,7 +147,7 @@ A("")
 A("## Gate")
 A("")
 rows = [
-    ("Exhaust temperature in a plausible band across load", "PASS from 40 % load" if band_ok else "**FAIL**",
+    ("Exhaust temperature in a plausible band across load", "PASS across 40-100 % load" if band_ok else "**FAIL**",
      f"600-800 K [S01, indicative]. Diesel-like: {d.t_exh[hi].min():.0f}-{d.t_exh[hi].max():.0f} K for 40-100 % load. "
      f"Methanol: {m.t_exh[hi].min():.0f}-{m.t_exh[hi].max():.0f} K. **Outside the band: loads {', '.join(f'{x*100:.0f} %' for x in out_loads)} "
      f"(diesel-like {', '.join(f'{t:.0f} K' for t in d.t_exh[~in_band])}); no source covers that region.**"),
@@ -162,6 +162,8 @@ A("")
 A("![Load sweep](fig1_load_sweep.png)")
 A("")
 A("## Load sweep on the propeller law (healthy, ISO ambient)")
+A("")
+A("**Study range is 40-100 % load.** Rows at 30-35 % are shown only because they are used as an abstention stress test; they carry no accuracy claim. ")
 A("")
 A("Exhaust temperature and scavenge pressure are the model's *predictions*: only the rated point (and, for efficiency, the 50/75/100 % fuel-consumption points) were calibrated.")
 A("")
@@ -208,7 +210,7 @@ A("")
 g = healthy_grid(P)
 err = N.predict(g.n_rpm, g.m_fuel, g.p_scav, g.t_scav) - g.t_exh
 lo, mid = g.load_fraction < 0.45, g.load_fraction >= 0.45
-A(f"Fit on the healthy ISO diesel-like grid (45 points, load 30-100 % at three speed offsets from the propeller law): RMSE {np.sqrt(np.mean(err**2)):.1f} K overall; "
+A(f"Fit on the healthy ISO diesel-like grid (39 points, load 40-100 % at three speed offsets from the propeller law): RMSE {np.sqrt(np.mean(err**2)):.1f} K overall; "
   f"{np.sqrt(np.mean(err[mid]**2)):.1f} K for loads of 45 % and above; {np.sqrt(np.mean(err[lo]**2)):.1f} K below 45 % (max {np.max(np.abs(err)):.0f} K).")
 A("")
 rows = []
@@ -216,7 +218,7 @@ for name, s in res.items():
     fuel = "methanol" if "methanol" in name else "diesel_like"
     e = nominal_err(s, fuel)
     rows.append([name, f"{np.sqrt(np.mean(e[hi]**2)):.1f}", f"{np.mean(e[hi]):+.1f}", f"{np.sqrt(np.mean(e[~hi]**2)):.1f}"])
-L += md_table(["scenario", "RMSE K, 40-100 % load", "bias K, 40-100 %", "RMSE K, 30-35 %"], rows)
+L += md_table(["scenario", "RMSE K, 40-100 % load", "bias K, 40-100 %", "RMSE K, 30-35 % (stress only, no accuracy claim)"], rows)
 A("")
 A("## Limitations found (also in `docs/MODEL_CHOICES.md`)")
 A("")
