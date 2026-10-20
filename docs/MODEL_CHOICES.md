@@ -124,6 +124,37 @@ Run with `scripts/run_ablation_validation.py`; numbers in `reports/models/ablati
 * Permutation importance (M2-C) is led by heat per revolution (4.9 K), engine speed (3.0 K) and the fuel-flow history (1.2 and 0.9 K). That is physically plausible; the nominal estimate matters less (0.6 K). The hidden fouling states are not observable, so the remaining 3.6 K against a 1.5 K noise floor cannot be removed by these features. This explanation is a hypothesis.
 * Missing turbocharger-speed values (338 rows in validation) are forward-filled causally; leading gaps use the train median.
 
+## 10g. Uncertainty and abstention: pre-registration (written 2026-10-20, before any M3, conformal or OOD result exists)
+Everything below is decided before `scripts/run_uncertainty_validation.py` has ever run. No test or stress split is used in stage 4; the stress-split abstain rates are evaluated in stage 5, and their expected values are fixed here.
+
+**Model M3.** Gradient-boosted quantile regression (5 % and 95 %) on the residual of the cross-fitted M0b estimate, feature variant C, trained on train only, with the M2 settings (15 leaves, min 1000 samples per leaf, 300 iterations, rate 0.08); no new tuning. Variant D is not used by M3: its input-quality flags never fire in clean data (section 10f), and the injected faults are on the exhaust sensor, which is not a model input, so they cannot show up in input flags. The two rule-based input checks (out-of-range value, stuck signal) stay as hard abstain reasons and are tested with corrupted copies of validation inputs.
+
+**Conformal step.** Split conformalised quantile regression (Romano et al., 2019), written by hand: score = max(lower - y, y - upper) on the *measured* temperature of the calibration split; correction = the ceil((n+1)(1-alpha))/n quantile of the scores, alpha = 0.10; interval = [lower - correction, upper + correction]. Global correction is the headline. A per-fuel correction is a variant only; it is reported beside the global one, and the global one stays the headline unless the per-fuel coverage of the global interval misses 90 % by more than 2 points (then both are shown and the decision is written here).
+
+**Checks (validation split, which the calibration never saw).**
+* Coverage of the measured value within 2 points of 90 %; the same for the true value, expected to be slightly higher.
+* Per episode: share of episodes below 80 % coverage, and the worst decile. Sensor bias is constant inside an episode, so coverage is not evenly spread, and the rows of one episode are not independent: the finite-sample guarantee is about episodes, and the row-wise numbers are shown for completeness.
+* Width of the interval by fuel and load bin.
+
+**Out-of-range score.** Mean distance to the 10 nearest training points, per fuel, in the standardised space of engine speed, fuel flow, scavenge pressure and temperature, ambient temperature, boost ratio and cooler temperature rise (training reference: every 10th second of train). Threshold = 99th percentile of the calibration scores, so the expected false-abstain rate in-distribution is about 1 %.
+
+**Abstain rule.** Abstain with a stated reason if: an input is outside its physical range, a signal is stuck for 60 s, the out-of-range score exceeds the threshold, or the interval is wider than 30 K. The 30 K width tolerance is an assumed engineering value, not a sourced one; the share of rows it triggers is reported. Dropped turbocharger-speed values are filled with the last value and do not abstain by themselves.
+
+**Expected abstain rates on the stress split (fixed now, checked in stage 5):** at 35 % load, diesel-like 30 to 70 %; at 30 % load, diesel-like at least 80 %; methanol (trained only down to 55 % load) at least 90 % in both bins. In-distribution false-abstain at most 2 %. These are guesses from the distance of those operating points to the training band, not computed values.
+
+**Not done in stage 4:** coverage under regime shift (stage 5, sealed splits); fault detection (stage 5); a cross-check against the MAPIE library is attempted only if it installs cleanly.
+
+## 10h. Result of the stage 4 run on validation (simulated data; no test or stress split read)
+Run with `scripts/run_uncertainty_validation.py`; full tables in `reports/uncertainty/uncertainty_validation.md`. The pre-registered rules in 10g were used unchanged.
+
+* **Coverage of the 90 % interval on validation:** 90.7 % of measured values (target within 2 points: met), 93.0 % of true values (slightly conservative, as expected). The conformal correction is 2.1 K. The raw quantile model alone covers only 72.2 %, so the conformal step is what makes the interval honest, not a cosmetic adjustment.
+* **By fuel:** diesel-like 91.9 %, methanol 88.5 %. The miss on methanol is 1.5 points, inside the 2-point rule, so the global correction stays the headline; the per-fuel version (90.4 % overall) is in the report.
+* **Per episode:** 17.3 % of validation episodes have coverage below 80 %, and the worst decile is 73.3 %. Sensor bias is constant within an episode, so coverage is not evenly spread; the row-wise 90.7 % hides this. Both numbers are reported.
+* **Width:** mean 12.5 K (diesel-like 12.8, methanol 11.8), 95th percentile 16.1 K. The 30 K width tolerance never triggers in-distribution.
+* **Abstain rule, in-distribution:** 0.82 % of rows abstain, all because of the out-of-range score (threshold 0.941 from the calibration 99th percentile). The two input rules fired on none of the clean rows and flagged 100 % of the corrupted rows in the unit-style check.
+* The guarantee holds for exchangeable episodes. Regime shift and fault detection are stage 5.
+* A cross-check against the MAPIE library has not been done.
+
 ## 11. Parameter registry as a gate
 * Every number lives in `config/params.yaml` with a status. A test fails if a number used in code is missing from the registry, if a registered number is unused, or if a calibrated value is stale.
 * 90 parameters: 15 sourced, 1 derived, 10 calibrated, 64 assumed (`docs/PARAMETERS.md`).
