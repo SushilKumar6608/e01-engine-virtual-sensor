@@ -69,6 +69,49 @@ Evidence labels: **sourced** (a cited source), **calibrated** (tuned to a stated
 ## 10c. Ensemble (M4)
 * Out of the main build. Re-entry rule: decided at the model-selection gate using validation data only. If it comes in: a 5-model LightGBM bag whose spread is conformalised, evaluated on a fresh test set (new `base_seed`). Documented as "scoped, with a re-entry rule".
 
+## 10d. Evaluation protocol and baselines (pre-registered, written before any model result)
+Written on 2026-10-18, before dataset_v2 was generated and before any baseline was run on validation. No test split has been used for any model result.
+
+**Units.** The dataset stores pressures in bar; `NominalModel.predict` expects Pa. The conversion lives in one adapter function with a test (noise-free plant values give identical output through the adapter and through direct SI input).
+
+**Headline metric.**
+* Clean splits: error against the *measured* exhaust temperature (the only thing checkable on a real engine). Model selection and tuning use this error only.
+* Error against the *true* temperature is reported beside it, for diagnosis only, never for choosing a model.
+* Fault split: the sensor is deliberately wrong, so the measured value is the wrong reference. Models take no exhaust-sensor input, so their predictions cannot change with the fault; the headline there is detection delay (by fault type) and false-alarm rate on the unfaulted episodes, with the true-temperature error beside it. The residual against the measured value is the detector's signal.
+* Noise floor row on every split: RMS difference between measured and true. On dataset_v1 validation it was 1.50 K; no input-based model can do better than about that against the measured value (part of it is a per-episode sensor bias).
+* Dropouts: rows with a missing measured value leave the measured metric and stay in the true metric; both row counts are printed. In the clean splits the exhaust target is never missing.
+* Confidence intervals come from resampling episodes, never rows. Metrics: RMSE, MAE and bias per split, fuel and load bin.
+* Prediction intervals are calibrated on the measured target. Coverage of the measured value is the headline; coverage of the true value is shown beside it (expected to be slightly conservative). Coverage is also reported per episode (share of episodes below 80 % of nominal coverage, worst decile), because sensor bias is constant within an episode.
+* The harness refuses `test_*` and `stress_*` splits unless unsealed explicitly; each unseal is logged in the repository. Validation only until the model-selection gate.
+
+**Baselines (all fitted on training episodes only).**
+* Per-fuel constant: the floor.
+* Load-only lookup: load = fuel flow x lower heating value over the rated value for that fuel (not a measured signal). 20 quantile bins per fuel, linear interpolation between bin centres, clamped outside the training range. Fitted on the measured target with missing rows dropped.
+* M0: air delivery ratio refitted on the same training episodes as M0b; exhaust share from the rated heat balance. The healthy-grid fit remains only as the labelled commissioning baseline.
+* M0b: delivery ratio = a + b * (p_scav / p_amb); exhaust share fixed from the rated heat balance; only a and b are fitted, to the measured exhaust temperature with dropout rows removed, on every 10th second (for speed; autocorrelation does not bias the point estimate, the episode bootstrap handles the intervals). Identifiability is checked with several starting points and an episode-level bootstrap; parameter intervals are reported.
+* M0b is cross-fitted for the features stage: 5 episode-grouped folds on train give out-of-fold predictions; validation, calibration and test use the model fitted on all of train.
+
+**Expected ordering, written down before running (validation, RMSE against measured, per fuel):** per-fuel constant worst, then load-only lookup, then M0, then M0b best. If the order differs, the defined checks come first (unit test, fit convergence, residual signs); the result is then reported as it is. Nothing is tuned until the expected order appears.
+
+**Lag is not a fairness problem.** On dataset_v1 validation the true exhaust temperature differs from its lag-free steady-state value by 1.00 K RMS, against baseline errors of about 11 K. The harness also reports the 99th percentile, since ramps are worse than the average.
+
+**Fouling regime (dataset_v2).** The two Beta draws per episode are kept and rescaled into a per-split range, so every other random draw is identical to v1.
+* All splits except the high-fouling test: start in [0, 0.45], hard cap 0.50 after drift (turbocharger and air cooler each).
+* `test_regime_high_fouling`: 240 episodes (builds with 60, 120 and 180 failed the coverage gate with 4, 1 and 1 of 46 methanol bins under-populated; the last two holes were the slowest, lowest-fuel corner bin, visited by only 2 of 66 methanol episodes against the required 3; episodes were added, thresholds unchanged), two cohorts by episode index, 120 each. `tc_high`: turbocharger starts in [0.55, 0.75], cooler capped. `cooler_high`: cooler starts in [0.55, 0.75], turbocharger capped. Reported separately.
+* Expected: M0 degrades most in `tc_high` (negative bias; on dataset_v1 validation its bias went from +4.9 K clean to -10.2 K for turbocharger fouling 0.5 to 0.65) and shows positive bias in `cooler_high` (+5.8 K for cooler fouling 0.5 to 0.65).
+* Cold ambient stays, labelled "weak shift, expected to pass", as a negative control.
+* The fouling effect size is assumed, not sourced: this split tests extrapolation within the simulator's law, not real-engine behaviour.
+* Decision history: made after seeing M0's residuals by fouling on a validation sample (design coverage of the main hidden state); no learned model had been evaluated.
+
+## 10e. Baseline result on validation (simulated data; test and stress splits untouched)
+Run once with `scripts/run_baselines_validation.py`; numbers in `reports/baselines/validation_summary.md`.
+
+* RMSE against measured, all validation rows: constant 22.95 K, load lookup 18.56 K, M0 10.47 K, M0b 9.57 K. Noise floor 1.50 K.
+* **The pre-registered ordering holds for diesel-like (25.58 > 19.68 > 11.34 > 9.77 K) but not for methanol:** M0 8.51 K [7.79, 9.25] beats M0b 9.18 K [8.46, 9.89] (intervals overlap).
+* Defined checks done: unit adapter test passes (bar passed as Pa fails loudly); M0b converged to the same parameters from three starts (a = 0.950, b = 0.029); episode bootstrap gives a in [0.937, 0.967] and b in [0.022, 0.035], so both are identifiable.
+* Residual signs: M0b has a bias of about -9.7 K at load above 0.85 for both fuels, M0 about -3.4 K. A delivery ratio that is linear in boost, shared by both fuels, fits the middle of the range and misses the high-load end. This explanation is a hypothesis, not tested.
+* Nothing was tuned. M0b stays the headline baseline as pre-registered (best overall); M0 stays as reference and is reported per fuel. The methanol result is reported as it is.
+
 ## 11. Parameter registry as a gate
 * Every number lives in `config/params.yaml` with a status. A test fails if a number used in code is missing from the registry, if a registered number is unused, or if a calibrated value is stale.
 * 90 parameters: 15 sourced, 1 derived, 10 calibrated, 64 assumed (`docs/PARAMETERS.md`).

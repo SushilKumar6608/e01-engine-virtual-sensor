@@ -419,6 +419,31 @@ def gate7_leakage(cfg: DatasetConfig, reg: Registry, data_dir: Path) -> Gate:
     if low["load_fraction"].max() > load_min + 1e-9 or tr_load["load_fraction"].min() < load_min - 1e-9 or low["load_fraction"].min() < stress_min - 1e-9:
         problems.append("low-load stress data overlap the operating range")
     det.append(f"abstention stress split spans {low['load_fraction'].min():.2f} to {low['load_fraction'].max():.2f} load; training starts at {tr_load['load_fraction'].min():.2f}")
+    # fouling regimes: capped everywhere except in the two high-fouling cohorts
+    cap = cfg.fouling.default_start_range[1] + cfg.fouling.clip_margin
+    worst = 0.0
+    for name in cfg.splits:
+        if name == "test_regime_high_fouling":
+            continue
+        tr_ = load_split(data_dir, name, "truth")
+        worst = max(worst, float(max(tr_["foul_tc"].max(), tr_["foul_cool"].max())))
+    if worst > cap + 1e-9:
+        problems.append(f"fouling above the cap {cap} outside the high-fouling split ({worst:.3f})")
+    hf = load_split(data_dir, "test_regime_high_fouling", "truth")
+    hf_ids = load_split(data_dir, "test_regime_high_fouling")["episode_id"].astype(str).to_numpy()
+    hmeta = meta[meta["split"] == "test_regime_high_fouling"].set_index("episode_id")
+    cohort_rows = hmeta["foul_cohort"].reindex(hf_ids).to_numpy()
+    lines = []
+    for coh, high, low in (("tc_high", "foul_tc", "foul_cool"), ("cooler_high", "foul_cool", "foul_tc")):
+        m = cohort_rows == coh
+        if not m.any():
+            problems.append(f"no episodes in cohort {coh}")
+            continue
+        h_min, l_max = float(hf.loc[m, high].min()), float(hf.loc[m, low].max())
+        if h_min < cap + 0.05 - 1e-9 or l_max > cap + 1e-9:
+            problems.append(f"{coh}: {high} minimum {h_min:.3f} or {low} maximum {l_max:.3f} violates the pre-registered ranges")
+        lines.append(f"{coh}: {high} from {h_min:.2f}, {low} at most {l_max:.2f} ({int(m.sum()) // 1800} episodes)")
+    det.append(f"fouling: at most {worst:.3f} in all other splits (cap {cap}); high-fouling split " + "; ".join(lines))
     return Gate(7, "Leakage", not problems, "PASS" if not problems else "FAIL: " + "; ".join(problems), det)
 
 

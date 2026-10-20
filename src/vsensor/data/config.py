@@ -48,6 +48,22 @@ class Coverage(_Strict):
     small_min_episodes: int
 
 
+class Fouling(_Strict):
+    """Range of the starting fouling of the turbocharger and the air cooler (0 clean, 1 fully fouled).
+
+    The two Beta draws per episode are unchanged; their result (0 to 1) is rescaled linearly into the
+    range of the split, so the number of random draws per episode never changes.
+    """
+    default_start_range: tuple[float, float]
+    clip_margin: float = Field(ge=0.0)   # fouling may drift up to this far above the top of its start range
+
+
+class FoulCohort(_Strict):
+    name: str
+    foul_tc_range: tuple[float, float] | None = None
+    foul_cool_range: tuple[float, float] | None = None
+
+
 class Split(_Strict):
     seed_id: int
     episodes: int = Field(gt=0)
@@ -57,6 +73,9 @@ class Split(_Strict):
     t_amb_k: tuple[float, float]
     eta_scale_methanol: float = 1.0
     fault_cycle: list[str] | None = None
+    foul_tc_range: tuple[float, float] | None = None      # None: Fouling.default_start_range
+    foul_cool_range: tuple[float, float] | None = None
+    foul_cohorts: list[FoulCohort] | None = None           # episode i belongs to cohort i modulo the number of cohorts
 
     @model_validator(mode="after")
     def _check(self):
@@ -84,6 +103,7 @@ class DatasetConfig(_Strict):
     profile: Profile
     fault_injection: FaultInjection
     coverage: Coverage
+    fouling: Fouling
     splits: dict[str, Split]
 
     @model_validator(mode="after")
@@ -91,6 +111,12 @@ class DatasetConfig(_Strict):
         ids = [s.seed_id for s in self.splits.values()]
         if len(set(ids)) != len(ids):
             raise ValueError("seed_id must be unique per split")
+        for sname, s in self.splits.items():
+            ranges = [r for r in (s.foul_tc_range, s.foul_cool_range, self.fouling.default_start_range) if r]
+            ranges += [r for c in (s.foul_cohorts or []) for r in (c.foul_tc_range, c.foul_cool_range) if r]
+            for lo, hi in ranges:
+                if not (0.0 <= lo < hi and hi + self.fouling.clip_margin <= 1.0 + 1e-12):
+                    raise ValueError(f"bad fouling range in {sname}: {(lo, hi)}")
         if self.sampling_hz != 1.0:
             raise ValueError("this version of the generator supports 1 Hz only")
         return self
@@ -98,6 +124,17 @@ class DatasetConfig(_Strict):
     def content_hash(self) -> str:
         canon = json.dumps(self.model_dump(mode="json"), sort_keys=True)
         return hashlib.sha256(canon.encode()).hexdigest()
+
+
+def foul_ranges(cfg: "DatasetConfig", split: Split, index: int):
+    """Cohort name and the (low, high) start ranges for the turbocharger and the cooler of episode ``index``."""
+    tc = split.foul_tc_range or cfg.fouling.default_start_range
+    cl = split.foul_cool_range or cfg.fouling.default_start_range
+    name = "all"
+    if split.foul_cohorts:
+        c = split.foul_cohorts[index % len(split.foul_cohorts)]
+        name, tc, cl = c.name, c.foul_tc_range or tc, c.foul_cool_range or cl
+    return name, tuple(tc), tuple(cl)
 
 
 def load_dataset_config(path: Path | str = CONFIG_PATH) -> DatasetConfig:

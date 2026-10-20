@@ -24,7 +24,7 @@ from dataclasses import dataclass
 import numpy as np
 from scipy.ndimage import gaussian_filter1d
 
-from vsensor.data.config import DatasetConfig, Split
+from vsensor.data.config import DatasetConfig, Split, foul_ranges
 from vsensor.params import Registry
 from vsensor.sim.fuels import FUEL_SPECIES
 from vsensor.sim.plant import Plant
@@ -93,8 +93,9 @@ def simulate_episode(
     p_amb0 = float(np.clip(rng.normal(reg["amb.p_mean"], reg["amb.p_sd"]), reg["amb.p_mean"] - 3 * reg["amb.p_sd"], reg["amb.p_mean"] + 3 * reg["amb.p_sd"]))
     t_amp, t_per, t_ph = rng.uniform(0.0, reg["amb.t_drift_amp_max"]), rng.uniform(1500.0, 3600.0), rng.uniform(0.0, 2 * np.pi)
     p_amp, p_per, p_ph = rng.uniform(0.0, reg["amb.p_drift_amp_max"]), rng.uniform(1500.0, 3600.0), rng.uniform(0.0, 2 * np.pi)
-    ftc0 = reg["health.tc.max"] * rng.beta(reg["health.tc.beta_a"], reg["health.tc.beta_b"])
-    fcl0 = reg["health.cool.max"] * rng.beta(reg["health.cool.beta_a"], reg["health.cool.beta_b"])
+    cohort, (tc_lo, tc_hi), (cl_lo, cl_hi) = foul_ranges(cfg, split, index)
+    ftc0 = tc_lo + (tc_hi - tc_lo) * rng.beta(reg["health.tc.beta_a"], reg["health.tc.beta_b"])
+    fcl0 = cl_lo + (cl_hi - cl_lo) * rng.beta(reg["health.cool.beta_a"], reg["health.cool.beta_b"])
     ftc_rate = abs(rng.normal(0.0, reg["health.drift_per_h_sd"]))
     fcl_rate = abs(rng.normal(0.0, reg["health.drift_per_h_sd"]))
 
@@ -102,8 +103,12 @@ def simulate_episode(
     load, sf = build_profile(rng, cfg, band)
     t_amb = t_amb0 + t_amp * np.sin(2 * np.pi * t / t_per + t_ph)
     p_amb = p_amb0 + p_amp * np.sin(2 * np.pi * t / p_per + p_ph)
-    foul_tc = np.clip(ftc0 + ftc_rate * t / 3600.0, 0.0, 1.0)
-    foul_cool = np.clip(fcl0 + fcl_rate * t / 3600.0, 0.0, 1.0)
+    # The registry maxima are the physical upper limits of fouling; no split may ask for more.
+    tc_top, cl_top = reg["health.tc.max"], reg["health.cool.max"]
+    if tc_hi + cfg.fouling.clip_margin > tc_top + 1e-12 or cl_hi + cfg.fouling.clip_margin > cl_top + 1e-12:
+        raise ValueError(f"fouling range of split {split_name} exceeds the registry maximum")
+    foul_tc = np.clip(ftc0 + ftc_rate * t / 3600.0, 0.0, tc_hi + cfg.fouling.clip_margin)
+    foul_cool = np.clip(fcl0 + fcl_rate * t / 3600.0, 0.0, cl_hi + cfg.fouling.clip_margin)
     n_rpm = np.minimum(sf * plant.n_rated * load ** (1.0 / 3.0), plant.n_rated)
     m_fuel = plant.fuel_flow_for_power(load * plant.p_rated, n_rpm, fuel)
 
@@ -183,5 +188,6 @@ def simulate_episode(
         "bias_m_fuel_rel": m.biases["m_fuel"], "bias_t_amb_k": m.biases["t_amb"], "bias_p_amb_bar": m.biases["p_amb"],
         "bias_t_exh_k": m.biases["t_exh"], "drift_pscav_bar_per_h": m.drift_rate_pscav_bar_per_h,
         "eta_scale_methanol": split.eta_scale_methanol,
+        "foul_cohort": cohort, "foul_tc_hi": tc_hi, "foul_cool_hi": cl_hi,
     }
     return Episode(eid, split_name, meta, signals, truth, events)

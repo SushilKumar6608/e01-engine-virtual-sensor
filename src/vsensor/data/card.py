@@ -29,13 +29,13 @@ def write_card(cfg: DatasetConfig, reg: Registry, data_dir: Path, path: Path | N
 
 ## Purpose
 
-Training and honest testing of an uncertainty-aware virtual sensor for the exhaust gas temperature before the turbine of a large two-stroke marine-style engine, with a diesel-like fuel (n-dodecane surrogate) and methanol. The data also serve to test how the sensor behaves in regimes it did not see (high load, methanol at low load, cold ambient), with injected sensor faults, and when asked to abstain (30-35 % load). The study range is 40-100 % load.
+Training and honest testing of an uncertainty-aware virtual sensor for the exhaust gas temperature before the turbine of a large two-stroke marine-style engine, with a diesel-like fuel (n-dodecane surrogate) and methanol. The data also serve to test how the sensor behaves in regimes it did not see (high load, methanol at low load, cold ambient), with injected sensor faults, and when asked to abstain (30-40 % load, below the study range). The study range is 40-100 % load.
 
 ## Contents
 
 Sampling 1 Hz, episodes of {cfg.episode_duration_s} s. For every split two tables: `signals_<split>.parquet` (what a model may see) and `truth_<split>.parquet` (hidden plant states and noise-free values; for evaluation and gate checks only, never as a model input).
 
-Model-visible columns: `{', '.join(MODEL_INPUT_COLUMNS)}`; target `{TARGET_COLUMN}` (the measured, noisy, lagged exhaust sensor value). Units: speed rpm, fuel flow kg/s, pressures bar, temperatures K, turbocharger speed rpm. `fuel_code` 0 = diesel-like, 1 = methanol. Missing values (NaN) occur only at injected sensor dropouts. `episodes.parquet` lists per-episode sensor biases, drift rates, fault type and a content digest; `events.parquet` lists dropouts and injected faults.
+Model-visible columns: `{', '.join(MODEL_INPUT_COLUMNS)}`; target `{TARGET_COLUMN}` (the measured, noisy, lagged exhaust sensor value). Units: speed rpm, fuel flow kg/s, pressures bar, temperatures K, turbocharger speed rpm. `fuel_code` 0 = diesel-like, 1 = methanol. Missing values (NaN) occur only at injected sensor dropouts: turbocharger-speed dropouts in every split, exhaust-temperature dropouts only in the fault split (the target is never missing in the other splits). `episodes.parquet` lists per-episode sensor biases, drift rates, fault type and a content digest; `events.parquet` lists dropouts and injected faults.
 
 ## How the data were generated
 
@@ -49,15 +49,20 @@ Registry: {len(reg.ids)} parameters: {', '.join(f'{counts.get(k, 0)} {k}' for k 
 |---|---|---|---|---|---|
 {chr(10).join(rows)}
 
-Episodes are never shared between splits; each split has its own seed id. The regime splits are held out by construction: training load is at most 0.90, methanol training load at least 0.55, training ambient temperatures above those of the cold split. Calibration and validation data are separate from training data.
+Episodes are never shared between splits; each split has its own seed id. The regime splits are held out by construction: training load is at most 0.90, methanol training load at least 0.55, training ambient temperatures above those of the cold split. Calibration and validation data are separate from training data. Fouling is capped at 0.50 in every split except `test_regime_high_fouling`, whose two cohorts (`tc_high`, `cooler_high`, 120 episodes each) have one component at 0.55 or more while the other stays capped.
+
+## Changes from dataset_v1
+
+dataset_v1 (hash ce417d33...) is retired. v2 differs only in fouling: all other random draws (fuel, ambient, load profile, sensor noise, faults) are identical by construction, because the same two Beta draws per episode are rescaled instead of resampled. The change was decided after seeing M0's residuals against fouling on a validation sample, for design coverage of the main hidden state; no learned model had been evaluated and no test split had been used for any model result.
 
 ## Known limits
 
+* Fouling effects are assumed, not sourced. `test_regime_high_fouling` tests extrapolation within the simulator's own fouling law, not behaviour of real engines. Training fouling is capped at 0.50 (start range 0 to 0.45), which compresses the v1 training distribution (mean starting fouling of the turbocharger falls from about 0.19 to about 0.10, of the air cooler from about 0.23 to about 0.13).
 * The simulator is a simplified steady-state-plus-lag model with generic parameters. The stroke, the air delivery law, the load dependence of exhaust temperature and the sizes of fouling and ambient effects are assumptions or unverified (see `docs/MODEL_CHOICES.md`, open items).
 * Exhaust temperature may exceed 800 K at heavy fouling; no source covers that region.
 * Sensor noise and lag values are plausible guesses, not instrument data sheets.
-* Cold ambient is not a hard regime shift for the nominal model (earlier finding).
-* 30-35 % load data (`stress_low_load`) are used only for the abstention stress test; no accuracy or coverage is reported there.
+* Cold ambient is expected to be a weak shift: in earlier checks the nominal model absorbed ambient changes through the measured scavenge pressure and temperature. It is kept as a negative control.
+* 30-40 % load data (`stress_low_load`) are used only for the abstention stress test; no accuracy or coverage is reported there.
 * Methanol efficiency stress splits (-3 % / +3 %) test sensitivity to the shared-curve assumption; they come from the plant only.
 * Wording rule: results "rest on the simulator", never "on verified physics".
 
@@ -68,7 +73,7 @@ Episodes are never shared between splits; each split has its own seed id. The re
 * Registry hash (without the nominal-model parameters): `{man['registry_hash']}`
 * Generator code hash: `{man['generator_code_hash']}`
 * Schema version {cfg.schema_version}; {int(meta.shape[0])} episodes.
-* Rebuild: `python scripts/build_dataset.py --full-check` must give the same dataset hash. The hash was computed on the generating platform; a different platform may produce a different hash if floating-point results differ in the last digits (measured values are hashed after rounding to 1e-6).
+* Rebuild: `python scripts/build_dataset.py --full-check` must give the same dataset hash. Generated on Linux and rebuilt on Windows with the same dataset, configuration, registry and code hashes (measured values are hashed after rounding to 1e-6, so last-digit floating-point differences do not change it). Evaluation protocol: `docs/MODEL_CHOICES.md`, section 10d.
 """
     path.write_text(t)
     return path

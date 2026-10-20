@@ -6,7 +6,7 @@ Goal: an uncertainty-aware virtual sensor that estimates the exhaust gas tempera
 
 ## Status
 
-Done so far: plant and nominal simulators, parameter registry, Cantera check, simulated dataset with nine quality gates (`docs/DATA_CARD.md`, `reports/data/data_quality_report.md`). Simulator: `reports/simulator/simulator_report.md`.
+Done so far: plant and nominal simulators, parameter registry, Cantera check, simulated dataset (dataset_v2) with nine quality gates (`docs/DATA_CARD.md`, `reports/data/data_quality_report.md`). Simulator: `reports/simulator/simulator_report.md`.
 
 **Wording rule:** results here "rest on the simulator". They are never described as resting on verified physics. Operating range of the study: 40-100 % load; 30-35 % load data are an abstention stress test only.
 

@@ -70,3 +70,37 @@ def test_build_one_split_twice_gives_same_hash(tmp_path):
     assert a["dataset_hash"] == b["dataset_hash"]
     assert len(load_split(tmp_path / "a", name)) == CFG.splits[name].episodes * int(CFG.episode_duration_s)
     assert load_manifest(tmp_path / "a")["dataset_hash"] == a["dataset_hash"]
+
+
+# ---------------------------------------------------------------- fouling regimes (dataset_v2)
+def _legacy_split(split):
+    return split.model_copy(update={"foul_tc_range": (0.0, 0.8 - CFG.fouling.clip_margin), "foul_cool_range": (0.0, 0.8 - CFG.fouling.clip_margin)})
+
+
+def test_fouling_rescale_changes_only_fouling_dependent_signals():
+    split = CFG.splits["train"]
+    a = simulate_episode("train", split, 3, CFG, REG, plant_for(split, REG, {}), SP)
+    s2 = _legacy_split(split)
+    b = simulate_episode("train", s2, 3, CFG, REG, plant_for(s2, REG, {}), SP)
+    for key in ("fuel", "t_amb0", "p_amb0", "foul_tc_rate_per_h", "foul_cool_rate_per_h", "bias_t_exh_k", "bias_m_fuel_rel"):
+        assert a.meta[key] == b.meta[key], key
+    for key in ("load_fraction", "speed_factor", "t_amb_true", "p_amb_true", "n_rpm_true", "m_fuel_true"):
+        assert np.array_equal(a.truth[key], b.truth[key]), key
+    assert a.meta["foul_tc0"] <= 0.45 and b.meta["foul_tc0"] >= a.meta["foul_tc0"]
+    assert not np.array_equal(a.truth["t_exh_true"], b.truth["t_exh_true"])
+
+
+def test_capped_splits_never_exceed_the_cap():
+    cap = CFG.fouling.default_start_range[1] + CFG.fouling.clip_margin
+    for i in range(12):
+        ep = episode("train", i)
+        assert max(ep.truth["foul_tc"].max(), ep.truth["foul_cool"].max()) <= cap + 1e-12
+
+
+def test_high_fouling_cohorts():
+    for i in range(6):
+        ep = episode("test_regime_high_fouling", i)
+        hi, lo = ("foul_tc", "foul_cool") if ep.meta["foul_cohort"] == "tc_high" else ("foul_cool", "foul_tc")
+        assert ep.truth[hi].min() >= 0.55 - 1e-12
+        assert ep.truth[lo].max() <= 0.50 + 1e-12
+    assert {episode("test_regime_high_fouling", i).meta["foul_cohort"] for i in range(2)} == {"tc_high", "cooler_high"}

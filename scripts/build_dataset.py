@@ -1,6 +1,6 @@
 """Build the simulated dataset, run the nine gates, release only if all pass (SIMULATED DATA).
 
-Usage:  python scripts/build_dataset.py [--full-check] [--out data/dataset_v1]
+Usage:  python scripts/build_dataset.py [--full-check] [--out data/<name from config>]
 The data are built in a temporary directory next to the target and moved into place only when
 every automated gate passes. --full-check also rebuilds everything a second time and compares hashes.
 """

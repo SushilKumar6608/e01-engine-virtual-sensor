@@ -1,7 +1,7 @@
 # Dataset configuration (SIMULATED DATA). Validated by src/vsensor/data/config.py.
 # Every choice here is a design decision or an assumption; none comes from a real engine.
 # Physical, sensor and dynamics numbers live in params.yaml (the registry), not here.
-name: dataset_v1
+name: dataset_v2
 schema_version: 1
 base_seed: 20261017          # change this to generate a completely fresh dataset
 sampling_hz: 1.0
@@ -30,6 +30,10 @@ coverage:                    # gate 5, fixed before the data were generated
   small_bins: 6
   small_min_rows: 10
   small_min_episodes: 2
+
+fouling:                     # pre-registered before dataset_v2 was generated (see docs/MODEL_CHOICES.md)
+  default_start_range: [0.0, 0.45]   # starting fouling of turbocharger and air cooler in every split except the high-fouling test
+  clip_margin: 0.05                  # drift may add at most this much above the top of the start range (hard cap 0.50)
 
 splits:
   train:
@@ -112,3 +116,13 @@ splits:
     load_band: {methanol: [0.55, 0.90]}
     t_amb_k: [284.5, 306.5]
     eta_scale_methanol: 1.03
+  test_regime_high_fouling:
+    seed_id: 12
+    episodes: 240
+    purpose: Held-out regime, high fouling of one component (used once). Two cohorts, reported separately; the other component stays in the training range.
+    fuel_mix: {diesel_like: 0.6, methanol: 0.4}
+    load_band: {diesel_like: [0.40, 0.90], methanol: [0.55, 0.90]}
+    t_amb_k: [284.5, 306.5]
+    foul_cohorts:
+      - {name: tc_high, foul_tc_range: [0.55, 0.75]}
+      - {name: cooler_high, foul_cool_range: [0.55, 0.75]}
