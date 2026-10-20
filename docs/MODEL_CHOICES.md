@@ -112,6 +112,18 @@ Run once with `scripts/run_baselines_validation.py`; numbers in `reports/baselin
 * Residual signs: M0b has a bias of about -9.7 K at load above 0.85 for both fuels, M0 about -3.4 K. A delivery ratio that is linear in boost, shared by both fuels, fits the middle of the range and misses the high-load end. This explanation is a hypothesis, not tested.
 * Nothing was tuned. M0b stays the headline baseline as pre-registered (best overall); M0 stays as reference and is reported per fuel. The methanol result is reported as it is.
 
+## 10f. Features A-D, M1 and M2 on validation (simulated data; test and stress splits untouched)
+Run with `scripts/run_ablation_validation.py`; numbers in `reports/models/ablation_summary.md`. Fitted on every 5th second of train; scalers on train only; M2 settings chosen from a 4-point grid on validation (all four are listed in `reports/models/ablation_log.json`). B-D predict the residual of the cross-fitted M0b estimate; A has no nominal estimate and predicts the measured temperature directly, so A-to-B changes two things at once (physics features and the residual set-up).
+
+* RMSE against measured, all validation rows: M0 10.47 K, M0b 9.57 K; M2 A 4.52, B 3.96, C 3.69, D 3.69; M1 A 5.19, B 3.91, C 3.61, D 3.61. Noise floor 1.50 K. The stage gate "M2 beats M0 on validation" is met.
+* **M2 does not beat the ridge model M1** (C: 3.69 against 3.61, intervals overlap). The gradient-boosted model is the planned main model, but on this data the simple model is as good. Reported as it is.
+* Raw signals alone (A) already halve the baseline error. The nominal estimate and physics features (B) improve it further (M2 4.52 to 3.96, intervals overlap slightly).
+* Dynamic features (C) help on ramps, as the 12 s exhaust lag predicts: on the 10 % of rows with the steepest fuel-flow change, M1 goes from 4.85 K (B) to 3.73 K (C). The 10 s large-change rule of `since_change` fires on only 60 validation rows in 1 episode, so it is not used for reporting; the ramp definition (top 10 % of fuel-flow slope over 30 s, threshold fixed on train) replaced it.
+* **Flags (D) change nothing here.** The out-of-range and stuck flags are never set in the clean splits, and the dropout flag affects only the forward-filled turbocharger speed. Their value can only be judged on the fault split (abstain rule, stages 4 and 5); until then D has not earned its place.
+* Monotonic constraints (design 8.1) are not applied: the model predicts a residual, where a physical monotonic constraint does not carry over. Open item.
+* Permutation importance (M2-C) is led by heat per revolution (4.9 K), engine speed (3.0 K) and the fuel-flow history (1.2 and 0.9 K). That is physically plausible; the nominal estimate matters less (0.6 K). The hidden fouling states are not observable, so the remaining 3.6 K against a 1.5 K noise floor cannot be removed by these features. This explanation is a hypothesis.
+* Missing turbocharger-speed values (338 rows in validation) are forward-filled causally; leading gaps use the train median.
+
 ## 11. Parameter registry as a gate
 * Every number lives in `config/params.yaml` with a status. A test fails if a number used in code is missing from the registry, if a registered number is unused, or if a calibrated value is stale.
 * 90 parameters: 15 sourced, 1 derived, 10 calibrated, 64 assumed (`docs/PARAMETERS.md`).
